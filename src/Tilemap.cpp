@@ -5,6 +5,7 @@ Tilemap::Tilemap(int tileSize)
     : m_tileSize(tileSize)
     , m_width(0)
     , m_height(0)
+    , m_tilesetWidthInTiles(0)
 {
 }
 
@@ -23,8 +24,10 @@ void Tilemap::loadFromData(const std::vector<std::vector<int>>& data, int tilese
     m_tiles = data;
     m_height = data.size();
     m_width = data.empty() ? 0 : data[0].size();
+    m_tilesetWidthInTiles = tilesetWidth;
 
     std::cout << "Loading tilemap data: " << m_width << "x" << m_height << std::endl;
+    std::cout << "Tileset width in tiles: " << m_tilesetWidthInTiles << std::endl;
     updateVertices();
     std::cout << "Generated " << m_vertices.size() << " vertices" << std::endl;
 }
@@ -40,8 +43,8 @@ void Tilemap::updateVertices() {
             if (tileNumber < 0) continue;
 
             // Calculer la position dans le tileset
-            int tu = tileNumber % 16; // 16 tiles par ligne (tileset 512x512 avec tiles 32x32)
-            int tv = tileNumber / 16;
+            int tu = tileNumber % m_tilesetWidthInTiles;
+            int tv = tileNumber / m_tilesetWidthInTiles;
 
             // Positions des 4 coins du quad
             float px = x * m_tileSize;

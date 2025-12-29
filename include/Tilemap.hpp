@@ -25,6 +25,7 @@ private:
     int m_tileSize;
     int m_width;
     int m_height;
+    int m_tilesetWidthInTiles;  // Nombre de tiles par ligne dans le tileset
 
     std::shared_ptr<sf::Texture> m_tileset;
     std::vector<std::vector<int>> m_tiles;

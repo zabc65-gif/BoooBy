@@ -63,7 +63,8 @@ void Level::createSimpleLevel() {
         levelData[levelHeight - 6][x] = 48;
     }
 
-    m_tilemap->loadFromData(levelData, 16);
+    // Le tileset Mossy fait 3584x3584 pixels, avec des tiles de 32x32 = 112 tiles par ligne
+    m_tilemap->loadFromData(levelData, 112);
 
     // Ligne d'arrivée à la fin du niveau (déplacée plus loin pour que le joueur la traverse visuellement)
     m_finishLine = sf::FloatRect(
