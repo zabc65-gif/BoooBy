@@ -7,6 +7,7 @@
 #include "Door.hpp"
 #include "PauseMenu.hpp"
 #include "Camera.hpp"
+#include "Level.hpp"
 
 class Game {
 public:
@@ -23,6 +24,8 @@ private:
     void handlePlayerInput(sf::Keyboard::Key key, bool isPressed);
     void handleMenuInput(sf::Keyboard::Key key);
 
+    void showVictoryMessage();
+
 private:
     static const sf::Time TimePerFrame;
 
@@ -31,6 +34,9 @@ private:
     std::unique_ptr<Door> m_entranceDoor;
     std::unique_ptr<PauseMenu> m_pauseMenu;
     std::unique_ptr<Camera> m_camera;
+    std::unique_ptr<Level> m_level;
 
     bool m_isPaused;
+    bool m_isFinished;
+    sf::Font m_font;
 };

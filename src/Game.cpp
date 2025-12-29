@@ -9,12 +9,24 @@ Game::Game()
     , m_entranceDoor(std::make_unique<Door>(sf::Vector2f(50.0f, 380.0f)))
     , m_pauseMenu(std::make_unique<PauseMenu>())
     , m_camera(std::make_unique<Camera>(1280.0f, 720.0f))
+    , m_level(std::make_unique<Level>())
     , m_isPaused(false)
+    , m_isFinished(false)
 {
     m_window.setFramerateLimit(60);
 
-    // Position initiale du joueur (à côté de la porte)
-    m_player->setPosition(sf::Vector2f(150.0f, 500.0f));
+    // Charger la police
+    if (!m_font.openFromFile("assets/Arial.ttf")) {
+        std::cerr << "Failed to load font for victory message" << std::endl;
+    }
+
+    // Charger le niveau
+    if (!m_level->load()) {
+        std::cerr << "Failed to load level" << std::endl;
+    }
+
+    // Position initiale du joueur (à côté de la porte, au niveau du sol)
+    m_player->setPosition(sf::Vector2f(150.0f, 425.0f));
 
     // Initialiser la caméra centrée sur le joueur
     m_camera->setPosition(m_player->getPosition());
@@ -94,17 +106,31 @@ void Game::processEvents() {
 }
 
 void Game::update(sf::Time deltaTime) {
+    if (m_isFinished) return; // Ne plus rien faire si le jeu est terminé
+
     m_player->update(deltaTime);
+
+    // Mettre à jour le niveau
+    m_level->update(deltaTime, *m_player);
+
+    // Vérifier si le joueur a atteint la ligne d'arrivée
+    if (m_level->isPlayerAtFinish(*m_player)) {
+        m_isFinished = true;
+        std::cout << "Level completed!" << std::endl;
+    }
 
     // Mettre à jour la caméra pour suivre le joueur
     m_camera->update(m_player->getPosition(), deltaTime);
 }
 
 void Game::render() {
-    m_window.clear(sf::Color(20, 20, 30)); // Fond sombre pour l'ambiance
+    m_window.clear(sf::Color(135, 206, 235)); // Bleu ciel pour l'arrière-plan
 
     // Appliquer la vue de la caméra pour les éléments du monde
     m_window.setView(m_camera->getView());
+
+    // Dessiner le niveau
+    m_level->render(m_window);
 
     // Dessiner la porte d'entrée
     m_entranceDoor->render(m_window);
@@ -120,7 +146,34 @@ void Game::render() {
         m_pauseMenu->render(m_window);
     }
 
+    // Afficher le message de victoire si le niveau est terminé
+    if (m_isFinished) {
+        showVictoryMessage();
+    }
+
     m_window.display();
+}
+
+void Game::showVictoryMessage() {
+    // Rectangle semi-transparent en arrière-plan
+    sf::RectangleShape overlay(sf::Vector2f(1280.0f, 720.0f));
+    overlay.setFillColor(sf::Color(0, 0, 0, 180));
+    m_window.draw(overlay);
+
+    // Texte "Finish!!" (SFML 3.0 nécessite la font dans le constructeur)
+    sf::Text finishText(m_font, "Finish !!", 120);
+    finishText.setFillColor(sf::Color(255, 215, 0)); // Or
+    finishText.setOutlineColor(sf::Color::White);
+    finishText.setOutlineThickness(5.0f);
+    finishText.setStyle(sf::Text::Bold);
+
+    // Centrer le texte
+    sf::FloatRect textBounds = finishText.getLocalBounds();
+    finishText.setOrigin(sf::Vector2f(textBounds.position.x + textBounds.size.x / 2.0f,
+                                       textBounds.position.y + textBounds.size.y / 2.0f));
+    finishText.setPosition(sf::Vector2f(640.0f, 360.0f));
+
+    m_window.draw(finishText);
 }
 
 void Game::handlePlayerInput(sf::Keyboard::Key key, bool isPressed) {

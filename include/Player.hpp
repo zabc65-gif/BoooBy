@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <memory>
 
 class Player {
 public:
@@ -25,25 +26,36 @@ public:
 private:
     void updatePhysics(sf::Time deltaTime);
     void updateAnimation(sf::Time deltaTime);
+    void loadAnimationFrames(const std::string& directory, const std::string& prefix, int frameCount, std::vector<std::shared_ptr<sf::Texture>>& textures);
 
 private:
     sf::Vector2f m_position;
     sf::Vector2f m_velocity;
 
     State m_state;
+    State m_previousState;
 
     bool m_isMovingLeft;
     bool m_isMovingRight;
     bool m_isRunning;
     bool m_isGrounded;
+    bool m_facingRight;
 
     // Physics constants
     static constexpr float GRAVITY = 980.0f;
     static constexpr float WALK_SPEED = 150.0f;
     static constexpr float RUN_SPEED = 300.0f;
-    static constexpr float JUMP_FORCE = -500.0f;
+    static constexpr float JUMP_FORCE = -350.0f; // Réduit pour un saut moins haut
 
-    // Sprite and animation
-    sf::RectangleShape m_sprite; // Placeholder until we have textures
-    sf::Time m_animationTime;
+    // Animation constants
+    static constexpr float FRAME_TIME = 0.05f; // 50ms par frame = 20 FPS
+
+    // Animations
+    std::vector<std::shared_ptr<sf::Texture>> m_idleTextures;
+    std::vector<std::shared_ptr<sf::Texture>> m_walkTextures;
+    std::vector<std::shared_ptr<sf::Texture>> m_jumpTextures;
+
+    std::unique_ptr<sf::Sprite> m_sprite;
+    int m_currentFrame;
+    float m_frameTimer;
 };
