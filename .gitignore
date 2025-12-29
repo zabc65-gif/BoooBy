@@ -1,0 +1,20 @@
+# Fichiers de compilation
+build/
+*.o
+*.exe
+*.app
+
+# Fichiers système
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Fichiers IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Exécutables
+boooby
+BoooBy
