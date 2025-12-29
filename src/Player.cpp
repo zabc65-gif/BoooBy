@@ -131,9 +131,7 @@ void Player::updatePhysics(sf::Time deltaTime) {
         }
     }
 
-    // Limites de l'écran (temporaire)
-    if (m_position.x < 20.0f) m_position.x = 20.0f;
-    if (m_position.x > 1260.0f) m_position.x = 1260.0f;
+    // Les limites sont maintenant gérées par le système de niveau
 }
 
 void Player::updateAnimation(sf::Time deltaTime) {

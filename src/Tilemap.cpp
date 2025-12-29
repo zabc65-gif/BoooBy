@@ -24,12 +24,13 @@ void Tilemap::loadFromData(const std::vector<std::vector<int>>& data, int tilese
     m_height = data.size();
     m_width = data.empty() ? 0 : data[0].size();
 
+    std::cout << "Loading tilemap data: " << m_width << "x" << m_height << std::endl;
     updateVertices();
+    std::cout << "Generated " << m_vertices.size() << " vertices" << std::endl;
 }
 
 void Tilemap::updateVertices() {
     m_vertices.clear();
-    m_vertices.resize(m_width * m_height * 6); // 2 triangles par tile = 6 vertices
 
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
@@ -42,9 +43,6 @@ void Tilemap::updateVertices() {
             int tu = tileNumber % 16; // 16 tiles par ligne (tileset 512x512 avec tiles 32x32)
             int tv = tileNumber / 16;
 
-            // Obtenir un pointeur vers le quad actuel
-            int vertexIndex = (x + y * m_width) * 6;
-
             // Positions des 4 coins du quad
             float px = x * m_tileSize;
             float py = y * m_tileSize;
@@ -54,24 +52,28 @@ void Tilemap::updateVertices() {
             float ty = tv * m_tileSize;
 
             // Triangle 1
-            m_vertices[vertexIndex + 0].position = sf::Vector2f(px, py);
-            m_vertices[vertexIndex + 0].texCoords = sf::Vector2f(tx, ty);
-
-            m_vertices[vertexIndex + 1].position = sf::Vector2f(px + m_tileSize, py);
-            m_vertices[vertexIndex + 1].texCoords = sf::Vector2f(tx + m_tileSize, ty);
-
-            m_vertices[vertexIndex + 2].position = sf::Vector2f(px, py + m_tileSize);
-            m_vertices[vertexIndex + 2].texCoords = sf::Vector2f(tx, ty + m_tileSize);
+            sf::Vertex v0, v1, v2, v3, v4, v5;
+            v0.position = sf::Vector2f(px, py);
+            v0.texCoords = sf::Vector2f(tx, ty);
+            v1.position = sf::Vector2f(px + m_tileSize, py);
+            v1.texCoords = sf::Vector2f(tx + m_tileSize, ty);
+            v2.position = sf::Vector2f(px, py + m_tileSize);
+            v2.texCoords = sf::Vector2f(tx, ty + m_tileSize);
 
             // Triangle 2
-            m_vertices[vertexIndex + 3].position = sf::Vector2f(px, py + m_tileSize);
-            m_vertices[vertexIndex + 3].texCoords = sf::Vector2f(tx, ty + m_tileSize);
+            v3.position = sf::Vector2f(px, py + m_tileSize);
+            v3.texCoords = sf::Vector2f(tx, ty + m_tileSize);
+            v4.position = sf::Vector2f(px + m_tileSize, py);
+            v4.texCoords = sf::Vector2f(tx + m_tileSize, ty);
+            v5.position = sf::Vector2f(px + m_tileSize, py + m_tileSize);
+            v5.texCoords = sf::Vector2f(tx + m_tileSize, ty + m_tileSize);
 
-            m_vertices[vertexIndex + 4].position = sf::Vector2f(px + m_tileSize, py);
-            m_vertices[vertexIndex + 4].texCoords = sf::Vector2f(tx + m_tileSize, ty);
-
-            m_vertices[vertexIndex + 5].position = sf::Vector2f(px + m_tileSize, py + m_tileSize);
-            m_vertices[vertexIndex + 5].texCoords = sf::Vector2f(tx + m_tileSize, ty + m_tileSize);
+            m_vertices.push_back(v0);
+            m_vertices.push_back(v1);
+            m_vertices.push_back(v2);
+            m_vertices.push_back(v3);
+            m_vertices.push_back(v4);
+            m_vertices.push_back(v5);
         }
     }
 }
