@@ -113,25 +113,11 @@ void Player::updatePhysics(sf::Time deltaTime) {
     // Mise à jour de la position
     m_position += m_velocity * dt;
 
-    // Sol temporaire - aligner avec le bas de la porte (Y=500)
-    // Comme le personnage dans le sprite 512x512 n'occupe pas toute la hauteur,
-    // on place le sprite pour que les pieds visuels touchent Y=500
-    const float groundLevel = 425.0f;
-    if (m_position.y >= groundLevel) {
-        m_position.y = groundLevel;
-        m_velocity.y = 0.0f;
-        m_isGrounded = true;
-        if (m_state == State::Jumping || m_state == State::Falling) {
-            m_state = State::Idle;
-        }
+    // La gestion du sol est maintenant entièrement gérée par le système de niveau (Level::handlePlayerCollision)
+    // On garde juste la détection de l'état de chute
+    if (m_velocity.y > 0 && m_state != State::Falling && !m_isGrounded) {
+        m_state = State::Falling;
     }
-    else {
-        if (m_velocity.y > 0 && m_state != State::Falling) {
-            m_state = State::Falling;
-        }
-    }
-
-    // Les limites sont maintenant gérées par le système de niveau
 }
 
 void Player::updateAnimation(sf::Time deltaTime) {

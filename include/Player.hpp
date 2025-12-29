@@ -23,6 +23,14 @@ public:
     sf::Vector2f getPosition() const { return m_position; }
     void setPosition(const sf::Vector2f& position) { m_position = position; }
 
+    sf::Vector2f getVelocity() const { return m_velocity; }
+    void setVelocity(const sf::Vector2f& velocity) { m_velocity = velocity; }
+
+    void setGrounded(bool grounded) { m_isGrounded = grounded; }
+    bool isGrounded() const { return m_isGrounded; }
+
+    void setState(State state) { m_state = state; }
+
 private:
     void updatePhysics(sf::Time deltaTime);
     void updateAnimation(sf::Time deltaTime);

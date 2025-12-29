@@ -79,6 +79,7 @@ void Level::update(sf::Time deltaTime, Player& player) {
 void Level::handlePlayerCollision(Player& player) {
     // Récupérer la position et la vélocité du joueur
     sf::Vector2f position = player.getPosition();
+    sf::Vector2f velocity = player.getVelocity();
 
     // Taille approximative du joueur (en se basant sur le sprite à l'échelle 0.2)
     const float playerWidth = 102.0f;  // 512 * 0.2
@@ -97,17 +98,24 @@ void Level::handlePlayerCollision(Player& player) {
     for (int x = leftTile; x <= rightTile; ++x) {
         if (m_tilemap->isSolid(x, bottomTile + 1)) {
             onGround = true;
-            // Ajuster la position Y pour être sur le sol
-            float groundY = bottomTile * tileSize - playerHeight;
-            if (position.y > groundY) {
-                player.setPosition(sf::Vector2f(position.x, groundY));
-            }
+            // Ajuster la position Y pour être exactement sur le sol
+            float groundY = (bottomTile + 1) * tileSize - playerHeight;
+            position.y = groundY;
+            velocity.y = 0.0f;
+            player.setPosition(position);
+            player.setVelocity(velocity);
             break;
         }
     }
 
-    // Note: Pour l'instant, on laisse Player.cpp gérer la gravité et le sol temporaire
-    // Dans une version plus avancée, on pourrait complètement gérer les collisions ici
+    // Mettre à jour l'état du joueur
+    player.setGrounded(onGround);
+    if (onGround && (player.getPosition().y == position.y)) {
+        // Si le joueur est au sol et ne bouge pas verticalement, réinitialiser l'état si nécessaire
+        if (velocity.y >= 0) {
+            // Le joueur vient d'atterrir
+        }
+    }
 }
 
 bool Level::isPlayerAtFinish(const Player& player) const {
