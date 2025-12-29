@@ -65,10 +65,10 @@ void Level::createSimpleLevel() {
 
     m_tilemap->loadFromData(levelData, 16);
 
-    // Ligne d'arrivée à la fin du niveau
+    // Ligne d'arrivée à la fin du niveau (déplacée plus loin pour que le joueur la traverse visuellement)
     m_finishLine = sf::FloatRect(
-        sf::Vector2f((levelWidth - 3) * 32.0f, (levelHeight - 10) * 32.0f),  // Position
-        sf::Vector2f(32.0f * 2, 32.0f * 8)                                     // Taille
+        sf::Vector2f((levelWidth - 2) * 32.0f, (levelHeight - 10) * 32.0f),  // Position (levelWidth - 2 au lieu de - 3)
+        sf::Vector2f(32.0f * 1, 32.0f * 8)                                     // Taille (1 tile de large au lieu de 2)
     );
 }
 
@@ -113,11 +113,12 @@ void Level::handlePlayerCollision(Player& player) {
 bool Level::isPlayerAtFinish(const Player& player) const {
     sf::Vector2f playerPos = player.getPosition();
 
-    // Créer un rectangle pour le joueur
-    sf::FloatRect playerBounds(playerPos, sf::Vector2f(102.0f, 102.0f));
+    // Vérifier si le centre du joueur a franchi la ligne d'arrivée (pas juste une intersection)
+    float playerCenterX = playerPos.x + 102.0f / 2.0f;  // Centre horizontal du joueur
+    float finishLineX = m_finishLine.position.x;
 
-    // Vérifier intersection avec la ligne d'arrivée
-    return playerBounds.findIntersection(m_finishLine).has_value();
+    // Le joueur doit avoir franchi la ligne d'arrivée
+    return playerCenterX >= finishLineX;
 }
 
 void Level::render(sf::RenderWindow& window) {
