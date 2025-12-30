@@ -141,6 +141,14 @@ void Tilemap::render(sf::RenderWindow& window) {
             tileSprite.setPosition(sf::Vector2f(x * displaySize, y * displaySize));
             tileSprite.setScale(sf::Vector2f(scale, scale));
             window.draw(tileSprite);
+
+            // Dessiner un cadre rouge autour de chaque tile pour debug
+            sf::RectangleShape tileDebugRect(sf::Vector2f(displaySize, displaySize));
+            tileDebugRect.setPosition(sf::Vector2f(x * displaySize, y * displaySize));
+            tileDebugRect.setFillColor(sf::Color::Transparent);
+            tileDebugRect.setOutlineColor(sf::Color::Red);
+            tileDebugRect.setOutlineThickness(1.0f);
+            window.draw(tileDebugRect);
         }
     }
 }
