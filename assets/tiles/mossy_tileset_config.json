@@ -49,27 +49,27 @@
   },
   "8": {
     "desc": "Noir",
-    "collision": "solid",
+    "collision": "empty",
     "grassDepth": 0,
-    "notes": "Noir"
+    "notes": "Noir - pas de collision"
   },
   "9": {
     "desc": "Noir",
-    "collision": "solid",
+    "collision": "empty",
     "grassDepth": 0,
-    "notes": "Noir"
+    "notes": "Noir - pas de collision"
   },
   "10": {
     "desc": "Noir",
-    "collision": "solid",
+    "collision": "empty",
     "grassDepth": 0,
-    "notes": "Noir"
+    "notes": "Noir - pas de collision"
   },
   "11": {
     "desc": "Noir",
-    "collision": "solid",
+    "collision": "empty",
     "grassDepth": 0,
-    "notes": "Noir"
+    "notes": "Noir - pas de collision"
   },
   "12": {
     "desc": "Sol angle supérieur gauche coupé à 45%",
