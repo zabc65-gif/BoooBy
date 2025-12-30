@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <memory>
+#include "TileProperties.hpp"
 
 class Tilemap {
 public:
@@ -16,6 +17,12 @@ public:
     // Collision detection
     bool isSolid(int x, int y) const;
     sf::FloatRect getTileBounds(int x, int y) const;
+
+    // Tile properties access
+    int getTileId(int x, int y) const;
+    const TileProperties* getTileProperties(int x, int y) const;
+    CollisionType getCollisionType(int x, int y) const;
+    float getGrassDepth(int x, int y) const;
 
     int getTileSize() const { return m_tileSize; }
     int getWidth() const { return m_width; }

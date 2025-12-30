@@ -24,6 +24,10 @@ bool Tilemap::loadFromFile(const std::string& tilesetPath) {
 
     std::cout << "Tileset loaded: " << tilesetPath << " ("
               << m_tileset->getSize().x << "x" << m_tileset->getSize().y << ")" << std::endl;
+
+    // Load tile properties configuration
+    TilePropertiesManager::getInstance().loadFromFile("assets/tiles/mossy_tileset_config.json");
+
     return true;
 }
 
@@ -164,8 +168,11 @@ bool Tilemap::isSolid(int x, int y) const {
         return true; // Hors limites = solide
     }
 
-    int tile = m_tiles[y][x];
-    return tile >= 0; // Toute tile >= 0 est solide, -1 = vide
+    int tileId = m_tiles[y][x];
+    if (tileId < 0) return false; // -1 = vide
+
+    // Use tile properties manager to check if solid
+    return TilePropertiesManager::getInstance().isSolid(tileId);
 }
 
 sf::FloatRect Tilemap::getTileBounds(int x, int y) const {
@@ -173,4 +180,32 @@ sf::FloatRect Tilemap::getTileBounds(int x, int y) const {
         sf::Vector2f(x * m_tileSize, y * m_tileSize),
         sf::Vector2f(m_tileSize, m_tileSize)
     );
+}
+
+int Tilemap::getTileId(int x, int y) const {
+    if (x < 0 || x >= m_width || y < 0 || y >= m_height) {
+        return -1;
+    }
+    return m_tiles[y][x];
+}
+
+const TileProperties* Tilemap::getTileProperties(int x, int y) const {
+    int tileId = getTileId(x, y);
+    if (tileId < 0) return nullptr;
+
+    return TilePropertiesManager::getInstance().getTileProperties(tileId);
+}
+
+CollisionType Tilemap::getCollisionType(int x, int y) const {
+    int tileId = getTileId(x, y);
+    if (tileId < 0) return CollisionType::NONE;
+
+    return TilePropertiesManager::getInstance().getCollisionType(tileId);
+}
+
+float Tilemap::getGrassDepth(int x, int y) const {
+    int tileId = getTileId(x, y);
+    if (tileId < 0) return 0.0f;
+
+    return TilePropertiesManager::getInstance().getGrassDepth(tileId);
 }
