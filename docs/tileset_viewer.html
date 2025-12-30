@@ -187,16 +187,39 @@
                     <option value="empty">Vide (Pas de collision)</option>
                     <option value="platform">Plateforme (Collision par dessus uniquement)</option>
                     <option value="half-block">Demi-bloc (Collision partielle)</option>
-                    <option value="slope-left">Pente gauche (Monte vers la gauche)</option>
-                    <option value="slope-right">Pente droite (Monte vers la droite)</option>
-                    <option value="ladder">Échelle (Grimpable)</option>
-                    <option value="spikes">Pics (Dégâts au joueur)</option>
-                    <option value="water">Eau (Ralentissement)</option>
-                    <option value="ice">Glace (Glissement)</option>
-                    <option value="wall-left">Mur gauche (Bloque à gauche)</option>
-                    <option value="wall-right">Mur droit (Bloque à droite)</option>
-                    <option value="ceiling">Plafond (Bloque par le haut)</option>
-                    <option value="portal">Portail de téléportation</option>
+
+                    <optgroup label="Pentes">
+                        <option value="slope-left">Pente gauche (Monte vers la gauche)</option>
+                        <option value="slope-right">Pente droite (Monte vers la droite)</option>
+                    </optgroup>
+
+                    <optgroup label="Angles de sol">
+                        <option value="ground-corner-left">Angle de sol supérieur gauche</option>
+                        <option value="ground-corner-right">Angle de sol supérieur droit</option>
+                        <option value="ground-under-corner-left">Angle de dessous de sol gauche</option>
+                        <option value="ground-under-corner-right">Angle de dessous de sol droit</option>
+                    </optgroup>
+
+                    <optgroup label="Angles de mur">
+                        <option value="wall-corner-top-left">Angle de mur supérieur gauche</option>
+                        <option value="wall-corner-top-right">Angle de mur supérieur droit</option>
+                        <option value="wall-corner-bottom-left">Angle de mur inférieur gauche</option>
+                        <option value="wall-corner-bottom-right">Angle de mur inférieur droit</option>
+                    </optgroup>
+
+                    <optgroup label="Éléments spéciaux">
+                        <option value="ladder">Échelle (Grimpable)</option>
+                        <option value="spikes">Pics (Dégâts au joueur)</option>
+                        <option value="water">Eau (Ralentissement)</option>
+                        <option value="ice">Glace (Glissement)</option>
+                        <option value="portal">Portail de téléportation</option>
+                    </optgroup>
+
+                    <optgroup label="Murs et plafonds">
+                        <option value="wall-left">Mur gauche (Bloque à gauche)</option>
+                        <option value="wall-right">Mur droit (Bloque à droite)</option>
+                        <option value="ceiling">Plafond (Bloque par le haut)</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="form-group">
