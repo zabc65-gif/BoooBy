@@ -80,18 +80,18 @@ void Level::handlePlayerCollision(Player& player) {
     bool onGround = false;
 
     for (int x = leftTile; x <= rightTile; ++x) {
-        // Vérifier la tile juste en dessous des pieds du joueur
-        if (m_tilemap->isSolid(x, bottomTile + 1)) {
+        // Vérifier si les pieds du joueur touchent une tile solide
+        if (m_tilemap->isSolid(x, bottomTile)) {
             onGround = true;
             // Positionner le joueur juste au-dessus de la tile (ses pieds touchent le haut de la tile)
-            float groundY = (bottomTile + 1) * tileSize - playerHeight;
+            float groundY = bottomTile * tileSize - playerHeight;
             position.y = groundY;
             velocity.y = 0.0f;
             player.setPosition(position);
             player.setVelocity(velocity);
 
             if (frameCount % 60 == 0) {
-                std::cout << "  -> Collision! bottomTile+1=" << (bottomTile+1)
+                std::cout << "  -> Collision! bottomTile=" << bottomTile
                           << ", groundY=" << groundY << std::endl;
             }
             break;
