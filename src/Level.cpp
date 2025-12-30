@@ -78,7 +78,7 @@ void Level::handlePlayerCollision(Player& player) {
 
     // Vérifier collision avec le sol
     bool onGround = false;
-    const float grassOffset = 12.0f;  // Distance depuis le haut de la tile jusqu'au sommet de l'herbe
+    const float grassOffset = 32.0f;  // Distance depuis le haut de la tile jusqu'au sommet de l'herbe (milieu de la tile)
 
     for (int x = leftTile; x <= rightTile; ++x) {
         // Vérifier si le joueur est sur une tile solide
