@@ -185,13 +185,31 @@
                     <option value="none">Non défini</option>
                     <option value="solid">Solide (Bloque complètement)</option>
                     <option value="empty">Vide (Pas de collision)</option>
-                    <option value="platform">Plateforme (Collision par dessus)</option>
+                    <option value="platform">Plateforme (Collision par dessus uniquement)</option>
                     <option value="half-block">Demi-bloc (Collision partielle)</option>
+                    <option value="slope-left">Pente gauche (Monte vers la gauche)</option>
+                    <option value="slope-right">Pente droite (Monte vers la droite)</option>
+                    <option value="ladder">Échelle (Grimpable)</option>
+                    <option value="spikes">Pics (Dégâts au joueur)</option>
+                    <option value="water">Eau (Ralentissement)</option>
+                    <option value="ice">Glace (Glissement)</option>
+                    <option value="wall-left">Mur gauche (Bloque à gauche)</option>
+                    <option value="wall-right">Mur droit (Bloque à droite)</option>
+                    <option value="ceiling">Plafond (Bloque par le haut)</option>
+                    <option value="portal">Portail de téléportation</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Profondeur herbe (%):</label>
                 <input type="number" id="tileGrassDepth" min="0" max="100" value="0" placeholder="Ex: 25">
+            </div>
+            <div class="form-group" id="portalGroup" style="display: none;">
+                <label>Destination portail (x,y):</label>
+                <input type="text" id="tilePortalDest" placeholder="Ex: 10,5">
+            </div>
+            <div class="form-group" id="damageGroup" style="display: none;">
+                <label>Dégâts (spikes):</label>
+                <input type="number" id="tileDamage" min="1" max="100" value="10" placeholder="Ex: 10">
             </div>
             <div class="form-group">
                 <label>Notes:</label>
@@ -325,24 +343,55 @@
             document.getElementById('tileDesc').value = data.desc || '';
             document.getElementById('tileCollision').value = data.collision || 'none';
             document.getElementById('tileGrassDepth').value = data.grassDepth || 0;
+            document.getElementById('tilePortalDest').value = data.portalDest || '';
+            document.getElementById('tileDamage').value = data.damage || 10;
             document.getElementById('tileNotes').value = data.notes || '';
+
+            // Afficher/masquer les champs conditionnels
+            updateConditionalFields(data.collision || 'none');
 
             // Afficher l'éditeur
             document.getElementById('selectedTile').style.display = 'block';
             document.getElementById('selectedTile').scrollIntoView({ behavior: 'smooth' });
         }
 
+        // Mettre à jour les champs conditionnels
+        function updateConditionalFields(collisionType) {
+            document.getElementById('portalGroup').style.display = collisionType === 'portal' ? 'block' : 'none';
+            document.getElementById('damageGroup').style.display = collisionType === 'spikes' ? 'block' : 'none';
+        }
+
+        // Écouter les changements de type de collision
+        document.addEventListener('DOMContentLoaded', function() {
+            const collisionSelect = document.getElementById('tileCollision');
+            if (collisionSelect) {
+                collisionSelect.addEventListener('change', function() {
+                    updateConditionalFields(this.value);
+                });
+            }
+        });
+
         // Sauvegarder une tuile
         function saveTile() {
             if (currentTileId === null) return;
 
-            tileData[currentTileId] = {
+            const collisionType = document.getElementById('tileCollision').value;
+            const data = {
                 desc: document.getElementById('tileDesc').value,
-                collision: document.getElementById('tileCollision').value,
+                collision: collisionType,
                 grassDepth: parseInt(document.getElementById('tileGrassDepth').value) || 0,
                 notes: document.getElementById('tileNotes').value
             };
 
+            // Ajouter les champs conditionnels selon le type
+            if (collisionType === 'portal') {
+                data.portalDest = document.getElementById('tilePortalDest').value;
+            }
+            if (collisionType === 'spikes') {
+                data.damage = parseInt(document.getElementById('tileDamage').value) || 10;
+            }
+
+            tileData[currentTileId] = data;
             saveData();
             alert(`Tuile ${currentTileId} sauvegardée !`);
         }
