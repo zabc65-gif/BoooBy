@@ -87,23 +87,28 @@ void Level::handlePlayerCollision(Player& player) {
     for (int x = leftTile; x <= rightTile; ++x) {
         // Vérifier si les pieds du joueur touchent une tile solide
         if (m_tilemap->isSolid(x, bottomTile)) {
-            onGround = true;
-
             // Récupérer la profondeur d'herbe de la tile (en pourcentage)
             float grassDepthPercent = m_tilemap->getGrassDepth(x, bottomTile);
             float grassDepth = tileSize * (grassDepthPercent / 100.0f);
-
-            // Positionner le joueur pour qu'il marche dans l'herbe
             float groundY = bottomTile * tileSize + grassDepth - (playerHeight - feetOffset);
-            position.y = groundY;
-            velocity.y = 0.0f;
-            player.setPosition(position);
-            player.setVelocity(velocity);
 
-            if (frameCount % 60 == 0) {
-                std::cout << "  -> Collision! bottomTile=" << bottomTile
-                          << ", groundY=" << groundY << ", grassDepth=" << grassDepth
-                          << " (" << grassDepthPercent << "%)" << std::endl;
+            // Appliquer la collision uniquement si le joueur tombe (velocity.y >= 0)
+            // et qu'il est au niveau du sol ou en dessous
+            if (velocity.y >= 0) {
+                // Le joueur tombe et touche le sol
+                if (position.y >= groundY - 5.0f) {  // Tolérance de 5 pixels pour éviter les vibrations
+                    onGround = true;
+                    position.y = groundY;
+                    velocity.y = 0.0f;
+                    player.setPosition(position);
+                    player.setVelocity(velocity);
+
+                    if (frameCount % 60 == 0) {
+                        std::cout << "  -> Collision! bottomTile=" << bottomTile
+                                  << ", groundY=" << groundY << ", grassDepth=" << grassDepth
+                                  << " (" << grassDepthPercent << "%)" << std::endl;
+                    }
+                }
             }
             break;
         }
