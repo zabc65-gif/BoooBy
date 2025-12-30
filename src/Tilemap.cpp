@@ -6,6 +6,7 @@ Tilemap::Tilemap(int tileSize)
     , m_width(0)
     , m_height(0)
     , m_tilesetWidthInTiles(0)
+    , m_vertices(sf::PrimitiveType::Triangles)  // Utiliser Triangles
 {
 }
 
@@ -16,7 +17,13 @@ bool Tilemap::loadFromFile(const std::string& tilesetPath) {
         return false;
     }
 
-    std::cout << "Tileset loaded: " << tilesetPath << std::endl;
+    // Désactiver le lissage pour un rendu pixel-perfect
+    m_tileset->setSmooth(false);
+    // S'assurer que la texture est répétée
+    m_tileset->setRepeated(false);
+
+    std::cout << "Tileset loaded: " << tilesetPath << " ("
+              << m_tileset->getSize().x << "x" << m_tileset->getSize().y << ")" << std::endl;
     return true;
 }
 
@@ -29,12 +36,13 @@ void Tilemap::loadFromData(const std::vector<std::vector<int>>& data, int tilese
     std::cout << "Loading tilemap data: " << m_width << "x" << m_height << std::endl;
     std::cout << "Tileset width in tiles: " << m_tilesetWidthInTiles << std::endl;
     updateVertices();
-    std::cout << "Generated " << m_vertices.size() << " vertices" << std::endl;
+    std::cout << "Generated " << m_vertices.getVertexCount() << " vertices" << std::endl;
 }
 
 void Tilemap::updateVertices() {
     m_vertices.clear();
 
+    int tileCount = 0;
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
             int tileNumber = m_tiles[y][x];
@@ -46,6 +54,13 @@ void Tilemap::updateVertices() {
             int tu = tileNumber % m_tilesetWidthInTiles;
             int tv = tileNumber / m_tilesetWidthInTiles;
 
+            // Debug pour les premières tiles
+            if (tileCount < 3) {
+                std::cout << "  Tile #" << tileNumber << " at pos(" << x << "," << y << ") -> texture grid(" << tu << "," << tv << ")"
+                          << " -> texture pixels(" << (tu * m_tileSize) << "," << (tv * m_tileSize) << ")" << std::endl;
+            }
+            tileCount++;
+
             // Positions des 4 coins du quad
             float px = x * m_tileSize;
             float py = y * m_tileSize;
@@ -54,43 +69,90 @@ void Tilemap::updateVertices() {
             float tx = tu * m_tileSize;
             float ty = tv * m_tileSize;
 
-            // Triangle 1
+            // Deux triangles pour former un quad
             sf::Vertex v0, v1, v2, v3, v4, v5;
+
+            // Triangle 1
             v0.position = sf::Vector2f(px, py);
             v0.texCoords = sf::Vector2f(tx, ty);
+            v0.color = sf::Color::White;  // Important: couleur blanche pour afficher la texture correctement
+
             v1.position = sf::Vector2f(px + m_tileSize, py);
             v1.texCoords = sf::Vector2f(tx + m_tileSize, ty);
+            v1.color = sf::Color::White;
+
             v2.position = sf::Vector2f(px, py + m_tileSize);
             v2.texCoords = sf::Vector2f(tx, ty + m_tileSize);
+            v2.color = sf::Color::White;
 
             // Triangle 2
             v3.position = sf::Vector2f(px, py + m_tileSize);
             v3.texCoords = sf::Vector2f(tx, ty + m_tileSize);
+            v3.color = sf::Color::White;
+
             v4.position = sf::Vector2f(px + m_tileSize, py);
             v4.texCoords = sf::Vector2f(tx + m_tileSize, ty);
+            v4.color = sf::Color::White;
+
             v5.position = sf::Vector2f(px + m_tileSize, py + m_tileSize);
             v5.texCoords = sf::Vector2f(tx + m_tileSize, ty + m_tileSize);
+            v5.color = sf::Color::White;
 
-            m_vertices.push_back(v0);
-            m_vertices.push_back(v1);
-            m_vertices.push_back(v2);
-            m_vertices.push_back(v3);
-            m_vertices.push_back(v4);
-            m_vertices.push_back(v5);
+            m_vertices.append(v0);
+            m_vertices.append(v1);
+            m_vertices.append(v2);
+            m_vertices.append(v3);
+            m_vertices.append(v4);
+            m_vertices.append(v5);
         }
     }
 }
 
 void Tilemap::render(sf::RenderWindow& window) {
-    if (m_vertices.empty() || !m_tileset) return;
+    if (!m_tileset) {
+        return;
+    }
 
-    sf::RenderStates states;
-    states.texture = m_tileset.get();
-    window.draw(m_vertices.data(), m_vertices.size(), sf::PrimitiveType::Triangles, states);
+    // Afficher le niveau avec des sections de 256x256 pixels du tileset
+    // mais affichées à une échelle réduite pour correspondre au personnage
+    const int sectionSize = 256;
+    const int sectionsPerRow = 14;
+    const float scale = 0.25f;  // Afficher les tiles à 64x64 pixels au lieu de 256x256
+    const float displaySize = sectionSize * scale;  // 64 pixels
+
+    for (int y = 0; y < m_height; ++y) {
+        for (int x = 0; x < m_width; ++x) {
+            int tileNumber = m_tiles[y][x];
+
+            // -1 = pas de tile
+            if (tileNumber < 0) continue;
+
+            // Calculer quelle section du tileset afficher
+            int sectionX = tileNumber % sectionsPerRow;
+            int sectionY = tileNumber / sectionsPerRow;
+
+            sf::Sprite tileSprite(*m_tileset);
+            tileSprite.setTextureRect(sf::IntRect(
+                sf::Vector2i(sectionX * sectionSize, sectionY * sectionSize),
+                sf::Vector2i(sectionSize, sectionSize)
+            ));
+
+            // Positionner et afficher avec un scale de 0.5 (128x128 à l'écran)
+            tileSprite.setPosition(sf::Vector2f(x * displaySize, y * displaySize));
+            tileSprite.setScale(sf::Vector2f(scale, scale));
+            window.draw(tileSprite);
+        }
+    }
 }
 
 bool Tilemap::isSolid(int x, int y) const {
-    if (x < 0 || x >= m_width || y < 0 || y >= m_height) {
+    // Permettre au joueur de sauter au-dessus du niveau (y < 0)
+    if (y < 0) {
+        return false; // Pas de collision au-dessus du niveau
+    }
+
+    // Bloquer les côtés et le bas
+    if (x < 0 || x >= m_width || y >= m_height) {
         return true; // Hors limites = solide
     }
 

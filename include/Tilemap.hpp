@@ -29,7 +29,7 @@ private:
 
     std::shared_ptr<sf::Texture> m_tileset;
     std::vector<std::vector<int>> m_tiles;
-    std::vector<sf::Vertex> m_vertices;
+    sf::VertexArray m_vertices;  // Utiliser VertexArray au lieu de vector<Vertex>
 
     void updateVertices();
 };

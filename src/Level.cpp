@@ -2,13 +2,13 @@
 #include <iostream>
 
 Level::Level()
-    : m_tilemap(std::make_unique<Tilemap>(32))
+    : m_tilemap(std::make_unique<Tilemap>(64))  // Chaque tile fait 64x64 pixels à l'écran (256*0.25)
     , m_finishLine(sf::Vector2f(0, 0), sf::Vector2f(0, 0))
 {
 }
 
 bool Level::load() {
-    // Charger le tileset
+    // Charger le tileset Mossy
     if (!m_tilemap->loadFromFile("assets/tiles/Mossy Tileset/Mossy - TileSet.png")) {
         return false;
     }
@@ -21,55 +21,29 @@ bool Level::load() {
 }
 
 void Level::createSimpleLevel() {
-    // Créer un niveau simple: un couloir horizontal avec sol et plafond
+    // Créer un niveau très simple avec juste un sol
     // -1 = vide (air)
-    // 0 = tile de sol/mur (on utilisera la première tile du tileset)
+    // Sections 1-6 = sol (1=angle sup gauche, 6=angle sup droit, 2-5=milieu)
 
-    const int levelWidth = 50;  // 50 tiles de large
-    const int levelHeight = 23; // 23 tiles de haut (720 / 32 ≈ 22.5)
+    const int levelWidth = 20;   // 20 sections = 1280 pixels de large
+    const int levelHeight = 12;  // 12 sections = 768 pixels de haut
 
     std::vector<std::vector<int>> levelData(levelHeight, std::vector<int>(levelWidth, -1));
 
-    // Sol (2 lignes en bas)
-    for (int x = 0; x < levelWidth; ++x) {
-        levelData[levelHeight - 1][x] = 48; // Tile de sol
-        levelData[levelHeight - 2][x] = 32; // Tile sous le sol
+    // Sol (dernière ligne uniquement) avec angles et milieu
+    levelData[levelHeight - 1][0] = 1;  // Angle gauche
+    for (int x = 1; x < levelWidth - 1; ++x) {
+        levelData[levelHeight - 1][x] = 2 + (x % 4);  // Sections 2, 3, 4, 5 en alternance
     }
+    levelData[levelHeight - 1][levelWidth - 1] = 6;  // Angle droit
 
-    // Plafond (1 ligne en haut)
-    for (int x = 0; x < levelWidth; ++x) {
-        levelData[0][x] = 16; // Tile de plafond
-    }
+    // Le tileset fait 3584x3584, avec des sections de 256x256 = 14 sections par ligne
+    m_tilemap->loadFromData(levelData, 14);
 
-    // Murs gauche et droit
-    for (int y = 1; y < levelHeight - 2; ++y) {
-        levelData[y][0] = 17; // Mur gauche
-        levelData[y][levelWidth - 1] = 19; // Mur droit
-    }
-
-    // Quelques plateformes pour rendre le niveau plus intéressant
-    // Plateforme 1 (milieu-gauche)
-    for (int x = 8; x < 12; ++x) {
-        levelData[levelHeight - 6][x] = 48;
-    }
-
-    // Plateforme 2 (milieu)
-    for (int x = 18; x < 24; ++x) {
-        levelData[levelHeight - 9][x] = 48;
-    }
-
-    // Plateforme 3 (milieu-droit)
-    for (int x = 30; x < 35; ++x) {
-        levelData[levelHeight - 6][x] = 48;
-    }
-
-    // Le tileset Mossy fait 3584x3584 pixels, avec des tiles de 32x32 = 112 tiles par ligne
-    m_tilemap->loadFromData(levelData, 112);
-
-    // Ligne d'arrivée à la fin du niveau (déplacée plus loin pour que le joueur la traverse visuellement)
+    // Ligne d'arrivée à la fin du niveau
     m_finishLine = sf::FloatRect(
-        sf::Vector2f((levelWidth - 2) * 32.0f, (levelHeight - 10) * 32.0f),  // Position (levelWidth - 2 au lieu de - 3)
-        sf::Vector2f(32.0f * 1, 32.0f * 8)                                     // Taille (1 tile de large au lieu de 2)
+        sf::Vector2f((levelWidth - 1) * 64.0f, 0),
+        sf::Vector2f(64.0f, 64.0f * levelHeight)
     );
 }
 
@@ -87,36 +61,45 @@ void Level::handlePlayerCollision(Player& player) {
     const float playerHeight = 102.0f;
 
     // Calculer les tiles autour du joueur
-    int tileSize = m_tilemap->getTileSize();
+    int tileSize = m_tilemap->getTileSize();  // 64
 
     int leftTile = static_cast<int>(position.x / tileSize);
     int rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
     int topTile = static_cast<int>(position.y / tileSize);
     int bottomTile = static_cast<int>((position.y + playerHeight) / tileSize);
 
-    // Vérifier collision avec le sol (en dessous du joueur)
+    // Debug
+    static int frameCount = 0;
+    if (frameCount % 60 == 0) {
+        std::cout << "Player Y: " << position.y << ", bottomTile: " << bottomTile
+                  << ", tileSize: " << tileSize << std::endl;
+    }
+    frameCount++;
+
+    // Vérifier collision avec le sol
     bool onGround = false;
+    const float grassOffset = 12.0f;  // Distance depuis le haut de la tile jusqu'au sommet de l'herbe
+
     for (int x = leftTile; x <= rightTile; ++x) {
-        if (m_tilemap->isSolid(x, bottomTile + 1)) {
+        // Vérifier si le joueur est sur une tile solide
+        if (m_tilemap->isSolid(x, bottomTile)) {
             onGround = true;
-            // Ajuster la position Y pour être exactement sur le sol
-            float groundY = (bottomTile + 1) * tileSize - playerHeight;
+            // Positionner le joueur sur le sommet de l'herbe
+            float groundY = bottomTile * tileSize + grassOffset - playerHeight;
             position.y = groundY;
             velocity.y = 0.0f;
             player.setPosition(position);
             player.setVelocity(velocity);
+
+            if (frameCount % 60 == 0) {
+                std::cout << "  -> Collision! bottomTile=" << bottomTile << ", groundY=" << groundY << std::endl;
+            }
             break;
         }
     }
 
     // Mettre à jour l'état du joueur
     player.setGrounded(onGround);
-    if (onGround && (player.getPosition().y == position.y)) {
-        // Si le joueur est au sol et ne bouge pas verticalement, réinitialiser l'état si nécessaire
-        if (velocity.y >= 0) {
-            // Le joueur vient d'atterrir
-        }
-    }
 }
 
 bool Level::isPlayerAtFinish(const Player& player) const {

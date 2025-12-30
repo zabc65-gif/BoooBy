@@ -26,7 +26,10 @@ Game::Game()
     }
 
     // Position initiale du joueur (à côté de la porte, au niveau du sol)
-    m_player->setPosition(sf::Vector2f(150.0f, 425.0f));
+    // Le niveau fait 12 tiles de haut (12*64=768px), le sol est à la ligne 11 (y=11*64=704)
+    // Le joueur fait 102px de haut, donc position Y = 704 - 102 = 602
+    // Mais on le met légèrement en l'air pour que la gravité le place correctement
+    m_player->setPosition(sf::Vector2f(150.0f, 550.0f));
 
     // Initialiser la caméra centrée sur le joueur
     m_camera->setPosition(m_player->getPosition());
@@ -124,10 +127,18 @@ void Game::update(sf::Time deltaTime) {
 }
 
 void Game::render() {
-    m_window.clear(sf::Color(135, 206, 235)); // Bleu ciel pour l'arrière-plan
+    m_window.clear(sf::Color::Black); // Noir pour mieux voir les tiles
 
     // Appliquer la vue de la caméra pour les éléments du monde
     m_window.setView(m_camera->getView());
+
+    // DEBUG: Afficher la position de la caméra
+    static int frameCount = 0;
+    if (frameCount % 60 == 0) {
+        auto camCenter = m_camera->getView().getCenter();
+        std::cout << "Camera center: (" << camCenter.x << ", " << camCenter.y << ")" << std::endl;
+    }
+    frameCount++;
 
     // Dessiner le niveau
     m_level->render(m_window);
