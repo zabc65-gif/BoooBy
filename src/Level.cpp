@@ -21,19 +21,25 @@ bool Level::load() {
 }
 
 void Level::createSimpleLevel() {
-    // Créer un niveau très simple avec juste un sol continu
+    // Créer un niveau très simple avec juste un sol continu et un mur à gauche
     // -1 = vide (air)
-    // Tile 0 = angle supérieur gauche
+    // Tile 0 = angle supérieur gauche du sol
     // Tiles 1-4 = sol milieu (variantes)
-    // Tile 5 = angle supérieur droit
+    // Tile 5 = angle supérieur droit du sol
+    // Tile 19 = mur gauche
 
     const int levelWidth = 20;   // 20 sections = 1280 pixels de large
     const int levelHeight = 12;  // 12 sections = 768 pixels de haut
 
     std::vector<std::vector<int>> levelData(levelHeight, std::vector<int>(levelWidth, -1));
 
+    // Mur à gauche (colonne 0, lignes 0 à 10)
+    for (int y = 0; y < levelHeight - 1; ++y) {
+        levelData[y][0] = 19;  // Tile "mur gauche"
+    }
+
     // Sol (dernière ligne uniquement) - sol continu sans trous
-    levelData[levelHeight - 1][0] = 0;  // Angle gauche
+    levelData[levelHeight - 1][0] = 0;  // Angle gauche du sol
     for (int x = 1; x < levelWidth - 1; ++x) {
         levelData[levelHeight - 1][x] = 1 + (x % 4);  // Tiles 1, 2, 3, 4 en alternance
     }
@@ -80,6 +86,32 @@ void Level::handlePlayerCollision(Player& player) {
                   << ", tileSize: " << tileSize << std::endl;
     }
     frameCount++;
+
+    // Vérifier collision horizontale avec les murs
+    for (int y = topTile; y <= bottomTile; ++y) {
+        // Vérifier collision à gauche
+        if (velocity.x < 0) {
+            if (m_tilemap->isSolid(leftTile, y)) {
+                float wallRight = (leftTile + 1) * tileSize;
+                position.x = wallRight;
+                velocity.x = 0.0f;
+                player.setPosition(position);
+                player.setVelocity(velocity);
+                break;
+            }
+        }
+        // Vérifier collision à droite
+        else if (velocity.x > 0) {
+            if (m_tilemap->isSolid(rightTile, y)) {
+                float wallLeft = rightTile * tileSize;
+                position.x = wallLeft - playerWidth;
+                velocity.x = 0.0f;
+                player.setPosition(position);
+                player.setVelocity(velocity);
+                break;
+            }
+        }
+    }
 
     // Vérifier collision avec le sol
     bool onGround = false;
