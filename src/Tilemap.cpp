@@ -158,14 +158,9 @@ void Tilemap::render(sf::RenderWindow& window) {
 }
 
 bool Tilemap::isSolid(int x, int y) const {
-    // Permettre au joueur de sauter au-dessus du niveau (y < 0)
-    if (y < 0) {
-        return false; // Pas de collision au-dessus du niveau
-    }
-
-    // Bloquer les côtés et le bas
-    if (x < 0 || x >= m_width || y >= m_height) {
-        return true; // Hors limites = solide
+    // Hors limites = pas de collision (le joueur tombe dans le vide)
+    if (x < 0 || x >= m_width || y < 0 || y >= m_height) {
+        return false;
     }
 
     int tileId = m_tiles[y][x];
