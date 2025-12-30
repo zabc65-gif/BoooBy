@@ -53,7 +53,7 @@ private:
     static constexpr float GRAVITY = 980.0f;
     static constexpr float WALK_SPEED = 150.0f;
     static constexpr float RUN_SPEED = 300.0f;
-    static constexpr float JUMP_FORCE = -350.0f; // Réduit pour un saut moins haut
+    static constexpr float JUMP_FORCE = -500.0f; // Force de saut augmentée
 
     // Animation constants
     static constexpr float FRAME_TIME = 0.05f; // 50ms par frame = 20 FPS

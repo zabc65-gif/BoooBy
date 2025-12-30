@@ -21,21 +21,23 @@ bool Level::load() {
 }
 
 void Level::createSimpleLevel() {
-    // Créer un niveau très simple avec juste un sol
+    // Créer un niveau très simple avec juste un sol continu
     // -1 = vide (air)
-    // Sections 1-6 = sol (1=angle sup gauche, 6=angle sup droit, 2-5=milieu)
+    // Tile 0 = angle supérieur gauche
+    // Tiles 1-4 = sol milieu (variantes)
+    // Tile 5 = angle supérieur droit
 
     const int levelWidth = 20;   // 20 sections = 1280 pixels de large
     const int levelHeight = 12;  // 12 sections = 768 pixels de haut
 
     std::vector<std::vector<int>> levelData(levelHeight, std::vector<int>(levelWidth, -1));
 
-    // Sol (dernière ligne uniquement) avec angles et milieu
-    levelData[levelHeight - 1][0] = 1;  // Angle gauche
+    // Sol (dernière ligne uniquement) - sol continu sans trous
+    levelData[levelHeight - 1][0] = 0;  // Angle gauche
     for (int x = 1; x < levelWidth - 1; ++x) {
-        levelData[levelHeight - 1][x] = 2 + (x % 4);  // Sections 2, 3, 4, 5 en alternance
+        levelData[levelHeight - 1][x] = 1 + (x % 4);  // Tiles 1, 2, 3, 4 en alternance
     }
-    levelData[levelHeight - 1][levelWidth - 1] = 6;  // Angle droit
+    levelData[levelHeight - 1][levelWidth - 1] = 5;  // Angle droit
 
     // Le tileset fait 3584x3584, avec des sections de 256x256 = 14 sections par ligne
     m_tilemap->loadFromData(levelData, 14);
