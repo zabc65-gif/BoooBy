@@ -78,21 +78,21 @@ void Level::handlePlayerCollision(Player& player) {
 
     // Vérifier collision avec le sol
     bool onGround = false;
-    const float grassOffset = 32.0f;  // Distance depuis le haut de la tile jusqu'au sommet de l'herbe (milieu de la tile)
 
     for (int x = leftTile; x <= rightTile; ++x) {
-        // Vérifier si le joueur est sur une tile solide
-        if (m_tilemap->isSolid(x, bottomTile)) {
+        // Vérifier la tile juste en dessous des pieds du joueur
+        if (m_tilemap->isSolid(x, bottomTile + 1)) {
             onGround = true;
-            // Positionner le joueur sur le sommet de l'herbe
-            float groundY = bottomTile * tileSize + grassOffset - playerHeight;
+            // Positionner le joueur juste au-dessus de la tile (ses pieds touchent le haut de la tile)
+            float groundY = (bottomTile + 1) * tileSize - playerHeight;
             position.y = groundY;
             velocity.y = 0.0f;
             player.setPosition(position);
             player.setVelocity(velocity);
 
             if (frameCount % 60 == 0) {
-                std::cout << "  -> Collision! bottomTile=" << bottomTile << ", groundY=" << groundY << std::endl;
+                std::cout << "  -> Collision! bottomTile+1=" << (bottomTile+1)
+                          << ", groundY=" << groundY << std::endl;
             }
             break;
         }
