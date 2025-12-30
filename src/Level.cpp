@@ -59,6 +59,7 @@ void Level::handlePlayerCollision(Player& player) {
     // Taille approximative du joueur (en se basant sur le sprite à l'échelle 0.2)
     const float playerWidth = 102.0f;  // 512 * 0.2
     const float playerHeight = 102.0f;
+    const float feetOffset = 25.0f;  // Les pieds sont à 25 pixels du bas du sprite
 
     // Calculer les tiles autour du joueur
     int tileSize = m_tilemap->getTileSize();  // 64
@@ -66,7 +67,9 @@ void Level::handlePlayerCollision(Player& player) {
     int leftTile = static_cast<int>(position.x / tileSize);
     int rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
     int topTile = static_cast<int>(position.y / tileSize);
-    int bottomTile = static_cast<int>((position.y + playerHeight) / tileSize);
+    // Position des pieds réels du joueur
+    float feetY = position.y + playerHeight - feetOffset;
+    int bottomTile = static_cast<int>(feetY / tileSize);
 
     // Debug
     static int frameCount = 0;
@@ -83,8 +86,8 @@ void Level::handlePlayerCollision(Player& player) {
         // Vérifier si les pieds du joueur touchent une tile solide
         if (m_tilemap->isSolid(x, bottomTile)) {
             onGround = true;
-            // Positionner le joueur juste au-dessus de la tile (ses pieds touchent le haut de la tile)
-            float groundY = bottomTile * tileSize - playerHeight;
+            // Positionner le joueur de sorte que ses vrais pieds touchent le haut de la tile
+            float groundY = bottomTile * tileSize - (playerHeight - feetOffset);
             position.y = groundY;
             velocity.y = 0.0f;
             player.setPosition(position);
@@ -92,7 +95,7 @@ void Level::handlePlayerCollision(Player& player) {
 
             if (frameCount % 60 == 0) {
                 std::cout << "  -> Collision! bottomTile=" << bottomTile
-                          << ", groundY=" << groundY << std::endl;
+                          << ", groundY=" << groundY << ", feetY=" << feetY << std::endl;
             }
             break;
         }
