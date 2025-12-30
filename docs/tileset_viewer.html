@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mossy Tileset Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+
+        .info {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(14, 1fr);
+            gap: 2px;
+            background-color: #000;
+            padding: 2px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .tile-wrapper {
+            position: relative;
+            aspect-ratio: 1;
+            background-color: #333;
+            overflow: hidden;
+            border: 1px solid #555;
+        }
+
+        .tile-wrapper:hover {
+            border: 2px solid #4CAF50;
+            z-index: 10;
+        }
+
+        .tile-canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        .tile-id {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #4CAF50;
+            padding: 2px 4px;
+            font-size: 10px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        .tile-coords {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #ff9800;
+            padding: 2px 4px;
+            font-size: 9px;
+            border-radius: 2px;
+        }
+
+        .selected-tile {
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .selected-tile canvas {
+            border: 2px solid #4CAF50;
+            image-rendering: pixelated;
+            background-color: #333;
+        }
+
+        .selected-info {
+            margin-top: 10px;
+        }
+
+        .form-group {
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: inline-block;
+            width: 150px;
+            color: #4CAF50;
+        }
+
+        .form-group input, .form-group select {
+            width: 200px;
+            padding: 5px;
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 3px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .export-area {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 10px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍃 Mossy Tileset Viewer & Editor</h1>
+
+    <div class="info">
+        <h3>Informations du Tileset</h3>
+        <p><strong>Fichier:</strong> Mossy - TileSet.png</p>
+        <p><strong>Dimensions:</strong> 3584x3584 pixels</p>
+        <p><strong>Taille d'une section:</strong> 256x256 pixels</p>
+        <p><strong>Grille:</strong> 14x14 sections (196 tuiles au total)</p>
+        <p><strong>Instructions:</strong> Cliquez sur une tuile pour l'éditer. Remplissez les informations et cliquez sur "Sauvegarder".</p>
+    </div>
+
+    <div class="grid-container" id="tileGrid"></div>
+
+    <div class="selected-tile" id="selectedTile" style="display: none;">
+        <h3>Tuile Sélectionnée</h3>
+        <canvas id="selectedCanvas" width="256" height="256"></canvas>
+
+        <div class="selected-info">
+            <div class="form-group">
+                <label>ID:</label>
+                <input type="text" id="tileId" readonly>
+            </div>
+            <div class="form-group">
+                <label>Position (x, y):</label>
+                <input type="text" id="tilePos" readonly>
+            </div>
+            <div class="form-group">
+                <label>Description:</label>
+                <input type="text" id="tileDesc" placeholder="Ex: Sol avec herbe - angle gauche">
+            </div>
+            <div class="form-group">
+                <label>Type de collision:</label>
+                <select id="tileCollision">
+                    <option value="none">Non défini</option>
+                    <option value="solid">Solide (Bloque complètement)</option>
+                    <option value="empty">Vide (Pas de collision)</option>
+                    <option value="platform">Plateforme (Collision par dessus)</option>
+                    <option value="half-block">Demi-bloc (Collision partielle)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Profondeur herbe (%):</label>
+                <input type="number" id="tileGrassDepth" min="0" max="100" value="0" placeholder="Ex: 25">
+            </div>
+            <div class="form-group">
+                <label>Notes:</label>
+                <input type="text" id="tileNotes" placeholder="Informations supplémentaires">
+            </div>
+            <button onclick="saveTile()">💾 Sauvegarder cette tuile</button>
+            <button onclick="closeEditor()">❌ Fermer</button>
+        </div>
+    </div>
+
+    <div class="export-area">
+        <h3>📋 Export Documentation</h3>
+        <button onclick="exportToMarkdown()">📄 Exporter en Markdown</button>
+        <button onclick="exportToJSON()">📊 Exporter en JSON</button>
+        <button onclick="copyToClipboard()">📋 Copier dans le presse-papier</button>
+        <textarea id="exportData" readonly></textarea>
+    </div>
+
+    <script>
+        const TILESET_PATH = '../assets/tiles/Mossy Tileset/Mossy - TileSet.png';
+        const SECTION_SIZE = 256;
+        const SECTIONS_PER_ROW = 14;
+        const TOTAL_SECTIONS = 196;
+
+        let tilesetImage = new Image();
+        let tileData = {};
+        let currentTileId = null;
+
+        // Charger les données sauvegardées
+        function loadSavedData() {
+            const saved = localStorage.getItem('mossyTilesetData');
+            if (saved) {
+                tileData = JSON.parse(saved);
+            }
+        }
+
+        // Sauvegarder les données
+        function saveData() {
+            localStorage.setItem('mossyTilesetData', JSON.stringify(tileData));
+        }
+
+        // Initialiser les données par défaut pour les tuiles connues
+        function initializeDefaultData() {
+            const defaults = {
+                1: { desc: 'Angle supérieur gauche du sol', collision: 'solid', grassDepth: 25, notes: 'Sol avec herbe' },
+                2: { desc: 'Sol milieu - variante 1', collision: 'solid', grassDepth: 25, notes: 'Sol avec herbe' },
+                3: { desc: 'Sol milieu - variante 2', collision: 'solid', grassDepth: 25, notes: 'Sol avec herbe' },
+                4: { desc: 'Sol milieu - variante 3', collision: 'solid', grassDepth: 25, notes: 'Sol avec herbe' },
+                5: { desc: 'Sol milieu - variante 4', collision: 'solid', grassDepth: 25, notes: 'Sol avec herbe' },
+                6: { desc: 'Angle supérieur droit du sol', collision: 'solid', grassDepth: 25, notes: 'Sol avec herbe' }
+            };
+
+            for (let id in defaults) {
+                if (!tileData[id]) {
+                    tileData[id] = defaults[id];
+                }
+            }
+        }
+
+        // Créer la grille de tuiles
+        function createTileGrid() {
+            const grid = document.getElementById('tileGrid');
+
+            for (let i = 0; i < TOTAL_SECTIONS; i++) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'tile-wrapper';
+
+                const canvas = document.createElement('canvas');
+                canvas.className = 'tile-canvas';
+                canvas.width = SECTION_SIZE;
+                canvas.height = SECTION_SIZE;
+                canvas.dataset.tileId = i;
+
+                const idLabel = document.createElement('div');
+                idLabel.className = 'tile-id';
+                idLabel.textContent = i;
+
+                const coordsLabel = document.createElement('div');
+                coordsLabel.className = 'tile-coords';
+                const x = i % SECTIONS_PER_ROW;
+                const y = Math.floor(i / SECTIONS_PER_ROW);
+                coordsLabel.textContent = `(${x},${y})`;
+
+                wrapper.appendChild(canvas);
+                wrapper.appendChild(idLabel);
+                wrapper.appendChild(coordsLabel);
+
+                wrapper.addEventListener('click', () => selectTile(i));
+
+                grid.appendChild(wrapper);
+            }
+        }
+
+        // Dessiner toutes les tuiles
+        function drawAllTiles() {
+            const canvases = document.querySelectorAll('.tile-canvas');
+            canvases.forEach(canvas => {
+                const tileId = parseInt(canvas.dataset.tileId);
+                const x = (tileId % SECTIONS_PER_ROW) * SECTION_SIZE;
+                const y = Math.floor(tileId / SECTIONS_PER_ROW) * SECTION_SIZE;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(
+                    tilesetImage,
+                    x, y, SECTION_SIZE, SECTION_SIZE,
+                    0, 0, SECTION_SIZE, SECTION_SIZE
+                );
+            });
+        }
+
+        // Sélectionner une tuile
+        function selectTile(tileId) {
+            currentTileId = tileId;
+            const x = (tileId % SECTIONS_PER_ROW) * SECTION_SIZE;
+            const y = Math.floor(tileId / SECTIONS_PER_ROW) * SECTION_SIZE;
+
+            // Afficher la tuile en grand
+            const canvas = document.getElementById('selectedCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(
+                tilesetImage,
+                x, y, SECTION_SIZE, SECTION_SIZE,
+                0, 0, SECTION_SIZE, SECTION_SIZE
+            );
+
+            // Remplir le formulaire
+            document.getElementById('tileId').value = tileId;
+            document.getElementById('tilePos').value = `(${tileId % SECTIONS_PER_ROW}, ${Math.floor(tileId / SECTIONS_PER_ROW)})`;
+
+            const data = tileData[tileId] || {};
+            document.getElementById('tileDesc').value = data.desc || '';
+            document.getElementById('tileCollision').value = data.collision || 'none';
+            document.getElementById('tileGrassDepth').value = data.grassDepth || 0;
+            document.getElementById('tileNotes').value = data.notes || '';
+
+            // Afficher l'éditeur
+            document.getElementById('selectedTile').style.display = 'block';
+            document.getElementById('selectedTile').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Sauvegarder une tuile
+        function saveTile() {
+            if (currentTileId === null) return;
+
+            tileData[currentTileId] = {
+                desc: document.getElementById('tileDesc').value,
+                collision: document.getElementById('tileCollision').value,
+                grassDepth: parseInt(document.getElementById('tileGrassDepth').value) || 0,
+                notes: document.getElementById('tileNotes').value
+            };
+
+            saveData();
+            alert(`Tuile ${currentTileId} sauvegardée !`);
+        }
+
+        // Fermer l'éditeur
+        function closeEditor() {
+            document.getElementById('selectedTile').style.display = 'none';
+            currentTileId = null;
+        }
+
+        // Exporter en Markdown
+        function exportToMarkdown() {
+            let md = '# Mossy Tileset - Documentation Complète\n\n';
+            md += '**Généré le:** ' + new Date().toLocaleString() + '\n\n';
+
+            for (let line = 0; line < 14; line++) {
+                md += `## Ligne ${line} (Sections ${line * 14}-${line * 14 + 13})\n\n`;
+                md += '| ID | Position | Description | Collision | Profondeur herbe | Notes |\n';
+                md += '|-----|----------|-------------|-----------|------------------|-------|\n';
+
+                for (let col = 0; col < 14; col++) {
+                    const id = line * 14 + col;
+                    const data = tileData[id] || {};
+                    const desc = data.desc || 'À définir';
+                    const collision = data.collision || 'Non défini';
+                    const grassDepth = data.grassDepth ? `${data.grassDepth}%` : '-';
+                    const notes = data.notes || '-';
+
+                    md += `| ${id} | (${col},${line}) | ${desc} | ${collision} | ${grassDepth} | ${notes} |\n`;
+                }
+
+                md += '\n';
+            }
+
+            document.getElementById('exportData').value = md;
+        }
+
+        // Exporter en JSON
+        function exportToJSON() {
+            const json = JSON.stringify(tileData, null, 2);
+            document.getElementById('exportData').value = json;
+        }
+
+        // Copier dans le presse-papier
+        function copyToClipboard() {
+            const textarea = document.getElementById('exportData');
+            textarea.select();
+            document.execCommand('copy');
+            alert('Copié dans le presse-papier !');
+        }
+
+        // Initialisation
+        tilesetImage.onload = function() {
+            drawAllTiles();
+        };
+
+        tilesetImage.onerror = function() {
+            alert('Erreur: Impossible de charger le tileset. Vérifiez que le fichier existe à: ' + TILESET_PATH);
+        };
+
+        loadSavedData();
+        initializeDefaultData();
+        createTileGrid();
+        tilesetImage.src = TILESET_PATH;
+    </script>
+</body>
+</html>
