@@ -17,6 +17,7 @@ public:
     // Collision detection
     bool isSolid(int x, int y) const;
     sf::FloatRect getTileBounds(int x, int y) const;
+    sf::FloatRect getTileCollisionBounds(int x, int y) const;  // Bounds ajustés avec collisionBox
 
     // Tile properties access
     int getTileId(int x, int y) const;

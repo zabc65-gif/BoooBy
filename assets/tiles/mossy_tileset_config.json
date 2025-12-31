@@ -3,36 +3,42 @@
     "desc": "Angle de sol supérieur gauche",
     "collision": "ground-corner-left",
     "grassDepth": 25,
+    "collisionBox": { "left": 15, "top": 0, "right": 0, "bottom": 0 },
     "notes": ""
   },
   "1": {
     "desc": "Sol milieu - variante 0",
     "collision": "platform",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Sol milieu - variante 0"
   },
   "2": {
     "desc": "Sol milieu - variante 1",
     "collision": "platform",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Sol avec herbe"
   },
   "3": {
     "desc": "Sol milieu - variante 2",
     "collision": "platform",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Sol avec herbe"
   },
   "4": {
     "desc": "Sol milieu - variante 3",
     "collision": "platform",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Sol avec herbe"
   },
   "5": {
     "desc": "Angle de sol supérieur droit",
     "collision": "ground-corner-right",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 15, "bottom": 0 },
     "notes": "Sol avec herbe"
   },
   "6": {
@@ -87,6 +93,7 @@
     "desc": "Mur droit",
     "collision": "wall-right",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 18, "bottom": 0 },
     "notes": "Mur droit"
   },
   "15": {
@@ -99,6 +106,7 @@
     "desc": "Mur gauche",
     "collision": "wall-left",
     "grassDepth": 25,
+    "collisionBox": { "left": 18, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Mur gauche"
   },
   "28": {

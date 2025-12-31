@@ -154,6 +154,47 @@ bool TilePropertiesManager::loadFromFile(const std::string& filepath) {
 
                 props.portalDestination = content.substr(pos, valueEnd - pos);
                 pos = valueEnd + 1;
+            } else if (propName == "collisionBox") {
+                // Object value {left, top, right, bottom}
+                if (content[pos] != '{') break;
+                pos++;
+
+                // Parse the collision box properties
+                while (pos < content.length() && content[pos] != '}') {
+                    if (content[pos] != '"') break;
+                    pos++;
+
+                    size_t boxPropEnd = content.find('"', pos);
+                    if (boxPropEnd == std::string::npos) break;
+
+                    std::string boxProp = content.substr(pos, boxPropEnd - pos);
+                    pos = boxPropEnd + 1;
+
+                    // Skip colon
+                    while (pos < content.length() && content[pos] != ':') pos++;
+                    pos++;
+
+                    // Parse numeric value
+                    size_t valueEnd = pos;
+                    while (valueEnd < content.length() &&
+                           (std::isdigit(content[valueEnd]) || content[valueEnd] == '.' || content[valueEnd] == '-')) {
+                        valueEnd++;
+                    }
+                    float value = std::stof(content.substr(pos, valueEnd - pos));
+
+                    if (boxProp == "left") props.collisionBox.left = value;
+                    else if (boxProp == "top") props.collisionBox.top = value;
+                    else if (boxProp == "right") props.collisionBox.right = value;
+                    else if (boxProp == "bottom") props.collisionBox.bottom = value;
+
+                    pos = valueEnd;
+
+                    // Skip comma if present
+                    while (pos < content.length() && (content[pos] == ',' || std::isspace(content[pos]))) pos++;
+                }
+
+                // Skip closing brace
+                if (pos < content.length() && content[pos] == '}') pos++;
             }
 
             // Skip comma if present
@@ -215,4 +256,11 @@ float TilePropertiesManager::getGrassDepth(int tileId) const {
     if (!props) return 0.0f;
 
     return props->grassDepth;
+}
+
+CollisionBox TilePropertiesManager::getCollisionBox(int tileId) const {
+    const TileProperties* props = getTileProperties(tileId);
+    if (!props) return CollisionBox();
+
+    return props->collisionBox;
 }

@@ -97,8 +97,10 @@ void Level::handlePlayerCollision(Player& player) {
             // Calculer la tile à gauche du centre
             int leftWallTile = static_cast<int>((playerCenterX - 1) / tileSize);
             if (m_tilemap->isSolid(leftWallTile, y)) {
-                // Positionner le centre du joueur au centre de la tile adjacente au mur
-                float targetCenterX = (leftWallTile + 1) * tileSize + tileSize / 2.0f;
+                // Récupérer la vraie bounding box de collision de cette tuile
+                sf::FloatRect wallBounds = m_tilemap->getTileCollisionBounds(leftWallTile, y);
+                // Positionner le centre du joueur juste à droite du mur
+                float targetCenterX = wallBounds.position.x + wallBounds.size.x + playerWidth / 2.0f;
                 position.x = targetCenterX - playerWidth / 2.0f;
                 velocity.x = 0.0f;
                 player.setPosition(position);
@@ -117,8 +119,10 @@ void Level::handlePlayerCollision(Player& player) {
             // Calculer la tile à droite du centre
             int rightWallTile = static_cast<int>((playerCenterX + 1) / tileSize);
             if (m_tilemap->isSolid(rightWallTile, y)) {
-                // Positionner le centre du joueur au centre de la tile adjacente au mur
-                float targetCenterX = (rightWallTile - 1) * tileSize + tileSize / 2.0f;
+                // Récupérer la vraie bounding box de collision de cette tuile
+                sf::FloatRect wallBounds = m_tilemap->getTileCollisionBounds(rightWallTile, y);
+                // Positionner le centre du joueur juste à gauche du mur
+                float targetCenterX = wallBounds.position.x - playerWidth / 2.0f;
                 position.x = targetCenterX - playerWidth / 2.0f;
                 velocity.x = 0.0f;
                 player.setPosition(position);

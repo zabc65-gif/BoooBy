@@ -177,6 +177,24 @@ sf::FloatRect Tilemap::getTileBounds(int x, int y) const {
     );
 }
 
+sf::FloatRect Tilemap::getTileCollisionBounds(int x, int y) const {
+    int tileId = getTileId(x, y);
+    if (tileId < 0) {
+        return getTileBounds(x, y);
+    }
+
+    // Récupérer la collision box de cette tuile
+    CollisionBox box = TilePropertiesManager::getInstance().getCollisionBox(tileId);
+
+    // Appliquer les offsets à la bounding box normale
+    float left = x * m_tileSize + box.left;
+    float top = y * m_tileSize + box.top;
+    float width = m_tileSize - box.left - box.right;
+    float height = m_tileSize - box.top - box.bottom;
+
+    return sf::FloatRect(sf::Vector2f(left, top), sf::Vector2f(width, height));
+}
+
 int Tilemap::getTileId(int x, int y) const {
     if (x < 0 || x >= m_width || y < 0 || y >= m_height) {
         return -1;
