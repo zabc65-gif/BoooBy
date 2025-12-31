@@ -89,71 +89,74 @@ void Level::handlePlayerCollision(Player& player) {
 
     // Vérifier collision horizontale avec les murs (en utilisant le centre du joueur)
     float playerCenterX = position.x + playerWidth / 2.0f;
-    int centerTile = static_cast<int>(playerCenterX / tileSize);
+    bool touchingWall = false;
 
     for (int y = topTile; y < bottomTile; ++y) {
-        // Vérifier collision à gauche
-        if (velocity.x < 0) {
-            // Calculer la tile à gauche du centre
-            int leftWallTile = static_cast<int>((playerCenterX - 1) / tileSize);
-            if (m_tilemap->isSolid(leftWallTile, y)) {
-                // Récupérer la vraie bounding box de collision de cette tuile
-                sf::FloatRect wallBounds = m_tilemap->getTileCollisionBounds(leftWallTile, y);
-                // Positionner le centre du joueur juste à droite du mur
-                float targetCenterX = wallBounds.position.x + wallBounds.size.x + playerWidth / 2.0f;
-                position.x = targetCenterX - playerWidth / 2.0f;
-                velocity.x = 0.0f;
-                player.setPosition(position);
-                player.setVelocity(velocity);
+        int centerTile = static_cast<int>(playerCenterX / tileSize);
 
-                // Recalculer les tiles
-                playerCenterX = position.x + playerWidth / 2.0f;
-                centerTile = static_cast<int>(playerCenterX / tileSize);
-                leftTile = static_cast<int>(position.x / tileSize);
-                rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
-                break;
-            }
-        }
-        // Vérifier collision à droite
-        else if (velocity.x > 0) {
-            // Calculer la tile à droite du centre
-            int rightWallTile = static_cast<int>((playerCenterX + 1) / tileSize);
-            if (m_tilemap->isSolid(rightWallTile, y)) {
-                // Récupérer la vraie bounding box de collision de cette tuile
-                sf::FloatRect wallBounds = m_tilemap->getTileCollisionBounds(rightWallTile, y);
-                // Positionner le centre du joueur juste à gauche du mur
-                float targetCenterX = wallBounds.position.x - playerWidth / 2.0f;
-                position.x = targetCenterX - playerWidth / 2.0f;
-                velocity.x = 0.0f;
-                player.setPosition(position);
-                player.setVelocity(velocity);
+        // Vérifier si le joueur est adjacent à un mur (indépendamment de la vélocité)
+        if (m_tilemap->isSolid(centerTile, y)) {
+            // Récupérer la vraie bounding box de collision de cette tuile
+            sf::FloatRect wallBounds = m_tilemap->getTileCollisionBounds(centerTile, y);
+            float wallLeft = wallBounds.position.x;
+            float wallRight = wallBounds.position.x + wallBounds.size.x;
 
-                // Recalculer les tiles
-                playerCenterX = position.x + playerWidth / 2.0f;
-                centerTile = static_cast<int>(playerCenterX / tileSize);
-                leftTile = static_cast<int>(position.x / tileSize);
-                rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
+            // Vérifier si le centre du joueur est dans le mur
+            if (playerCenterX >= wallLeft && playerCenterX <= wallRight) {
+                touchingWall = true;
+
+                // Appliquer la collision seulement si le joueur se déplace vers le mur
+                if (velocity.x < 0 && playerCenterX < wallRight) {
+                    // Collision à gauche
+                    position.x = wallRight - playerWidth / 2.0f;
+                    velocity.x = 0.0f;
+                    player.setPosition(position);
+                    player.setVelocity(velocity);
+
+                    // Recalculer les tiles
+                    playerCenterX = position.x + playerWidth / 2.0f;
+                    leftTile = static_cast<int>(position.x / tileSize);
+                    rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
+                } else if (velocity.x > 0 && playerCenterX > wallLeft) {
+                    // Collision à droite
+                    position.x = wallLeft - playerWidth / 2.0f;
+                    velocity.x = 0.0f;
+                    player.setPosition(position);
+                    player.setVelocity(velocity);
+
+                    // Recalculer les tiles
+                    playerCenterX = position.x + playerWidth / 2.0f;
+                    leftTile = static_cast<int>(position.x / tileSize);
+                    rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
+                }
                 break;
             }
         }
     }
 
-    // Vérifier collision avec le sol
+    // Vérifier collision avec le sol (désactivée si le joueur touche un mur)
     bool onGround = false;
 
-    for (int x = leftTile; x <= rightTile; ++x) {
-        // Vérifier si les pieds du joueur touchent une tile solide
-        if (m_tilemap->isSolid(x, bottomTile)) {
-            // Récupérer la profondeur d'herbe de la tile (en pourcentage)
-            float grassDepthPercent = m_tilemap->getGrassDepth(x, bottomTile);
-            float grassDepth = tileSize * (grassDepthPercent / 100.0f);
-            float groundY = bottomTile * tileSize + grassDepth - (playerHeight - feetOffset);
+    if (!touchingWall) {
+        for (int x = leftTile; x <= rightTile; ++x) {
+            // Vérifier si les pieds du joueur touchent une tile solide
+            if (m_tilemap->isSolid(x, bottomTile)) {
+                // Vérifier le type de collision de la tuile
+                CollisionType tileType = m_tilemap->getCollisionType(x, bottomTile);
 
-            // Appliquer la collision uniquement si le joueur tombe (velocity.y >= 0)
-            // et qu'il est au niveau du sol ou en dessous
-            if (velocity.y >= 0) {
-                // Le joueur tombe et touche le sol
-                if (position.y >= groundY - 5.0f) {  // Tolérance de 5 pixels pour éviter les vibrations
+                // Ignorer la collision si c'est un mur (wall-left ou wall-right)
+                if (tileType == CollisionType::WALL_LEFT || tileType == CollisionType::WALL_RIGHT) {
+                    continue;  // Passer à la prochaine tuile
+                }
+
+                // Récupérer la profondeur d'herbe de la tile (en pourcentage)
+                float grassDepthPercent = m_tilemap->getGrassDepth(x, bottomTile);
+                float grassDepth = tileSize * (grassDepthPercent / 100.0f);
+                float groundY = bottomTile * tileSize + grassDepth - (playerHeight - feetOffset);
+
+                // Appliquer la collision uniquement si le joueur tombe (velocity.y >= 0)
+                // et qu'il est au niveau du sol ou en dessous (proche du sol)
+                if (velocity.y >= 0 && position.y >= groundY - 5.0f) {
                     onGround = true;
                     position.y = groundY;
                     velocity.y = 0.0f;
@@ -166,8 +169,8 @@ void Level::handlePlayerCollision(Player& player) {
                                   << " (" << grassDepthPercent << "%)" << std::endl;
                     }
                 }
+                break;
             }
-            break;
         }
     }
 
