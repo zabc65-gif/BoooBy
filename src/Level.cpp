@@ -87,18 +87,26 @@ void Level::handlePlayerCollision(Player& player) {
     }
     frameCount++;
 
-    // Vérifier collision horizontale avec les murs
+    // Vérifier collision horizontale avec les murs (en utilisant le centre du joueur)
+    float playerCenterX = position.x + playerWidth / 2.0f;
+    int centerTile = static_cast<int>(playerCenterX / tileSize);
+
     for (int y = topTile; y < bottomTile; ++y) {
         // Vérifier collision à gauche
         if (velocity.x < 0) {
-            if (m_tilemap->isSolid(leftTile, y)) {
-                float wallRight = (leftTile + 1) * tileSize;
-                position.x = wallRight;
+            // Calculer la tile à gauche du centre
+            int leftWallTile = static_cast<int>((playerCenterX - 1) / tileSize);
+            if (m_tilemap->isSolid(leftWallTile, y)) {
+                // Positionner le centre du joueur au centre de la tile adjacente au mur
+                float targetCenterX = (leftWallTile + 1) * tileSize + tileSize / 2.0f;
+                position.x = targetCenterX - playerWidth / 2.0f;
                 velocity.x = 0.0f;
                 player.setPosition(position);
                 player.setVelocity(velocity);
 
-                // Recalculer leftTile/rightTile après repositionnement
+                // Recalculer les tiles
+                playerCenterX = position.x + playerWidth / 2.0f;
+                centerTile = static_cast<int>(playerCenterX / tileSize);
                 leftTile = static_cast<int>(position.x / tileSize);
                 rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
                 break;
@@ -106,14 +114,19 @@ void Level::handlePlayerCollision(Player& player) {
         }
         // Vérifier collision à droite
         else if (velocity.x > 0) {
-            if (m_tilemap->isSolid(rightTile, y)) {
-                float wallLeft = rightTile * tileSize;
-                position.x = wallLeft - playerWidth;
+            // Calculer la tile à droite du centre
+            int rightWallTile = static_cast<int>((playerCenterX + 1) / tileSize);
+            if (m_tilemap->isSolid(rightWallTile, y)) {
+                // Positionner le centre du joueur au centre de la tile adjacente au mur
+                float targetCenterX = (rightWallTile - 1) * tileSize + tileSize / 2.0f;
+                position.x = targetCenterX - playerWidth / 2.0f;
                 velocity.x = 0.0f;
                 player.setPosition(position);
                 player.setVelocity(velocity);
 
-                // Recalculer leftTile/rightTile après repositionnement
+                // Recalculer les tiles
+                playerCenterX = position.x + playerWidth / 2.0f;
+                centerTile = static_cast<int>(playerCenterX / tileSize);
                 leftTile = static_cast<int>(position.x / tileSize);
                 rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
                 break;

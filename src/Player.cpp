@@ -184,4 +184,14 @@ void Player::render(sf::RenderWindow& window) {
 
     // Dessiner le sprite
     window.draw(*m_sprite);
+
+    // Dessiner le contour rouge pour debug (hitbox du joueur)
+    const float playerWidth = 102.0f;
+    const float playerHeight = 102.0f;
+    sf::RectangleShape debugRect(sf::Vector2f(playerWidth, playerHeight));
+    debugRect.setPosition(m_position);
+    debugRect.setFillColor(sf::Color::Transparent);
+    debugRect.setOutlineColor(sf::Color::Red);
+    debugRect.setOutlineThickness(2.0f);
+    window.draw(debugRect);
 }
