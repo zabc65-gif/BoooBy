@@ -88,7 +88,7 @@ void Level::handlePlayerCollision(Player& player) {
     frameCount++;
 
     // Vérifier collision horizontale avec les murs
-    for (int y = topTile; y <= bottomTile; ++y) {
+    for (int y = topTile; y < bottomTile; ++y) {
         // Vérifier collision à gauche
         if (velocity.x < 0) {
             if (m_tilemap->isSolid(leftTile, y)) {
@@ -97,6 +97,10 @@ void Level::handlePlayerCollision(Player& player) {
                 velocity.x = 0.0f;
                 player.setPosition(position);
                 player.setVelocity(velocity);
+
+                // Recalculer leftTile/rightTile après repositionnement
+                leftTile = static_cast<int>(position.x / tileSize);
+                rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
                 break;
             }
         }
@@ -108,6 +112,10 @@ void Level::handlePlayerCollision(Player& player) {
                 velocity.x = 0.0f;
                 player.setPosition(position);
                 player.setVelocity(velocity);
+
+                // Recalculer leftTile/rightTile après repositionnement
+                leftTile = static_cast<int>(position.x / tileSize);
+                rightTile = static_cast<int>((position.x + playerWidth) / tileSize);
                 break;
             }
         }
