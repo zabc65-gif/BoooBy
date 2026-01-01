@@ -110,6 +110,7 @@ void Game::processEvents() {
 
 void Game::update(sf::Time deltaTime) {
     if (m_isFinished) return; // Ne plus rien faire si le jeu est terminé
+    if (m_isPaused) return; // Ne rien mettre à jour si le jeu est en pause
 
     m_player->update(deltaTime);
 
@@ -152,14 +153,14 @@ void Game::render() {
     // Revenir à la vue par défaut pour l'interface utilisateur (menu pause)
     m_window.setView(m_window.getDefaultView());
 
-    // Dessiner le menu pause si le jeu est en pause
-    if (m_isPaused) {
-        m_pauseMenu->render(m_window);
-    }
-
     // Afficher le message de victoire si le niveau est terminé
     if (m_isFinished) {
         showVictoryMessage();
+    }
+
+    // Dessiner le menu pause si le jeu est en pause (au-dessus de tout)
+    if (m_isPaused) {
+        m_pauseMenu->render(m_window);
     }
 
     m_window.display();

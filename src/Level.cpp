@@ -39,7 +39,7 @@ void Level::createSimpleLevel() {
     }
 
     // Sol (dernière ligne uniquement) - sol continu sans trous
-    levelData[levelHeight - 1][0] = 0;  // Angle gauche du sol
+    levelData[levelHeight - 1][0] = 1;  // Sol classique à gauche
     for (int x = 1; x < levelWidth - 1; ++x) {
         levelData[levelHeight - 1][x] = 1 + (x % 4);  // Tiles 1, 2, 3, 4 en alternance
     }
@@ -134,10 +134,25 @@ void Level::handlePlayerCollision(Player& player) {
         }
     }
 
-    // Vérifier collision avec le sol (désactivée si le joueur touche un mur)
+    // Vérifier collision avec le sol
     bool onGround = false;
+    bool hasGroundTile = false;
 
-    if (!touchingWall) {
+    // Vérifier d'abord s'il y a une tuile de sol (pas un mur) sous le joueur
+    for (int x = leftTile; x <= rightTile; ++x) {
+        if (m_tilemap->isSolid(x, bottomTile)) {
+            CollisionType tileType = m_tilemap->getCollisionType(x, bottomTile);
+            // Si c'est une tuile de sol (pas un mur), noter qu'on a un sol
+            if (tileType != CollisionType::WALL_LEFT && tileType != CollisionType::WALL_RIGHT) {
+                hasGroundTile = true;
+                break;
+            }
+        }
+    }
+
+    // Appliquer la collision avec le sol seulement si:
+    // 1. Il n'y a pas de mur OU il y a un sol sous le joueur (priorité au sol)
+    if (!touchingWall || hasGroundTile) {
         for (int x = leftTile; x <= rightTile; ++x) {
             // Vérifier si les pieds du joueur touchent une tile solide
             if (m_tilemap->isSolid(x, bottomTile)) {
