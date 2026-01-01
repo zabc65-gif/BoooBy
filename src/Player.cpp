@@ -108,6 +108,11 @@ void Player::updatePhysics(sf::Time deltaTime) {
     // Gravité
     if (!m_isGrounded) {
         m_velocity.y += GRAVITY * dt;
+
+        // Limiter la vitesse de chute maximale pour plus de fluidité
+        if (m_velocity.y > 600.0f) {  // MAX_FALL_SPEED
+            m_velocity.y = 600.0f;
+        }
     }
 
     // Mise à jour de la position

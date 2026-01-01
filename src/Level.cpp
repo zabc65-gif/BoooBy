@@ -45,6 +45,12 @@ void Level::createSimpleLevel() {
     }
     levelData[levelHeight - 1][levelWidth - 1] = 5;  // Angle droit
 
+    // Mur droit test devant le personnage (colonne 5, posé sur le sol)
+    levelData[levelHeight - 2][5] = 14;  // Tile "mur droit" (tile #14)
+
+    // Tuile de plafond au-dessus du personnage (colonne 2-3, ligne 8)
+    levelData[8][2] = 71;  // Tile "dessous de sol" (ceiling)
+
     // Le tileset fait 3584x3584, avec des sections de 256x256 = 14 sections par ligne
     m_tilemap->loadFromData(levelData, 14);
 
@@ -134,6 +140,34 @@ void Level::handlePlayerCollision(Player& player) {
         }
     }
 
+    // Vérifier collision avec le plafond (uniquement quand le joueur monte)
+    if (velocity.y < 0) {
+        for (int x = leftTile; x <= rightTile; ++x) {
+            if (m_tilemap->isSolid(x, topTile)) {
+                CollisionType tileType = m_tilemap->getCollisionType(x, topTile);
+
+                // Vérifier si c'est un plafond
+                if (tileType == CollisionType::CEILING) {
+                    sf::FloatRect ceilingBounds = m_tilemap->getTileCollisionBounds(x, topTile);
+                    float ceilingBottom = ceilingBounds.position.y + ceilingBounds.size.y;
+
+                    // Vérifier si le haut du joueur est proche du plafond
+                    if (position.y <= ceilingBottom + 2.0f) {
+                        // Arrêter le mouvement vertical uniquement
+                        velocity.y = 0.0f;
+                        player.setVelocity(velocity);
+
+                        if (frameCount % 60 == 0) {
+                            std::cout << "  -> Ceiling collision! topTile=" << topTile
+                                      << ", ceilingBottom=" << ceilingBottom << std::endl;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     // Vérifier collision avec le sol
     bool onGround = false;
     bool hasGroundTile = false;
@@ -171,9 +205,12 @@ void Level::handlePlayerCollision(Player& player) {
 
                 // Appliquer la collision uniquement si le joueur tombe (velocity.y >= 0)
                 // et qu'il est au niveau du sol ou en dessous (proche du sol)
-                if (velocity.y >= 0 && position.y >= groundY - 5.0f) {
+                if (velocity.y >= 0 && position.y >= groundY - 2.0f) {
                     onGround = true;
-                    position.y = groundY;
+                    // Seulement ajuster la position si on est vraiment en dessous du sol
+                    if (position.y > groundY) {
+                        position.y = groundY;
+                    }
                     velocity.y = 0.0f;
                     player.setPosition(position);
                     player.setVelocity(velocity);

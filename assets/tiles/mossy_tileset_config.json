@@ -113,36 +113,42 @@
     "desc": "Mur droit",
     "collision": "wall-right",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 18, "bottom": 0 },
     "notes": "Mur droit"
   },
   "33": {
     "desc": "Mur gauche",
     "collision": "wall-left",
     "grassDepth": 25,
+    "collisionBox": { "left": 18, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Mur gauche"
   },
   "42": {
     "desc": "Mur droit",
     "collision": "wall-right",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 18, "bottom": 0 },
     "notes": "Mur droit"
   },
   "47": {
     "desc": "Mur gauche",
     "collision": "wall-left",
     "grassDepth": 25,
+    "collisionBox": { "left": 18, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Mur gauche"
   },
   "56": {
     "desc": "Mur droit",
     "collision": "wall-right",
     "grassDepth": 25,
+    "collisionBox": { "left": 0, "top": 0, "right": 18, "bottom": 0 },
     "notes": "Mur droit"
   },
   "61": {
     "desc": "Mur gauche",
     "collision": "wall-left",
     "grassDepth": 25,
+    "collisionBox": { "left": 18, "top": 0, "right": 0, "bottom": 0 },
     "notes": "Mur gauche"
   },
   "70": {
