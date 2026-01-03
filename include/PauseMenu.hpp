@@ -9,6 +9,7 @@ public:
     enum class MenuAction {
         None,
         Continue,
+        Restart,
         Quit
     };
 
@@ -19,6 +20,7 @@ public:
 
     MenuAction getSelectedAction() const;
     void resetAction();
+    void setEditorMode(bool isEditor);
 
 private:
     void updateSelection();
@@ -38,4 +40,5 @@ private:
     std::unique_ptr<sf::Text> m_titleText;
 
     MenuAction m_currentAction;
+    bool m_isEditorMode;
 };

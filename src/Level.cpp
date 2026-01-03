@@ -1,10 +1,28 @@
 #include "Level.hpp"
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cmath>
 
 Level::Level()
     : m_tilemap(std::make_unique<Tilemap>(64))  // Chaque tile fait 64x64 pixels à l'écran (256*0.25)
     , m_finishLine(sf::Vector2f(0, 0), sf::Vector2f(0, 0))
+    , m_entrancePortalPosition(0.0f, 0.0f)
+    , m_hasEntrancePortal(false)
+    , m_exitPortalPosition(0.0f, 0.0f)
+    , m_hasExitPortal(false)
+    , m_doorTextureLoaded(false)
 {
+    // Charger la texture de la porte médiévale
+    if (m_doorTexture.loadFromFile("assets/tiles/Medieval_door_large.png")) {
+        m_doorTextureLoaded = true;
+        m_entranceDoorSprite = std::make_unique<sf::Sprite>(m_doorTexture);
+        m_exitDoorSprite = std::make_unique<sf::Sprite>(m_doorTexture);
+        std::cout << "Medieval door texture loaded successfully" << std::endl;
+    } else {
+        std::cerr << "Failed to load medieval door texture" << std::endl;
+    }
 }
 
 bool Level::load() {
@@ -13,10 +31,134 @@ bool Level::load() {
         return false;
     }
 
-    // Créer un niveau simple
-    createSimpleLevel();
+    // Charger le niveau prologue
+    return loadFromFile("levels/prologue.json");
+}
 
-    std::cout << "Level loaded successfully" << std::endl;
+bool Level::loadFromFile(const std::string& filepath) {
+    std::cout << "Loading level from: " << filepath << std::endl;
+
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open level file: " << filepath << std::endl;
+        return false;
+    }
+
+    // Lecture simple du JSON ligne par ligne
+    std::string line;
+    std::vector<std::vector<int>> levelData;
+    int width = 0, height = 0;
+    bool inTiles = false;
+    bool inRow = false;
+
+    while (std::getline(file, line)) {
+        // Enlever les espaces
+        line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+
+        if (line.find("\"width\":") != std::string::npos) {
+            size_t pos = line.find(":");
+            width = std::stoi(line.substr(pos + 1, line.find(",") - pos - 1));
+            std::cout << "Parsed width: " << width << std::endl;
+        }
+        else if (line.find("\"height\":") != std::string::npos) {
+            size_t pos = line.find(":");
+            height = std::stoi(line.substr(pos + 1, line.find(",") - pos - 1));
+            std::cout << "Parsed height: " << height << std::endl;
+        }
+        else if (line.find("\"tiles\":") != std::string::npos) {
+            inTiles = true;
+            std::cout << "Found tiles array" << std::endl;
+        }
+        else if (inTiles && line.find("[") == 0) {
+            // C'est une ligne de tiles (peut avoir une virgule à la fin)
+            std::vector<int> row;
+
+            // Enlever le [ au début
+            std::string content = line.substr(1);
+
+            // Enlever le ] et possiblement une virgule à la fin
+            size_t endPos = content.find_last_of("]");
+            if (endPos != std::string::npos) {
+                content = content.substr(0, endPos);
+            }
+
+            if (!content.empty()) {
+                std::stringstream ss(content);
+                std::string token;
+                while (std::getline(ss, token, ',')) {
+                    row.push_back(std::stoi(token));
+                }
+                levelData.push_back(row);
+                std::cout << "Parsed row " << levelData.size() << " with " << row.size() << " tiles" << std::endl;
+            }
+        }
+        else if (line.find("],") == 0 || line.find("]") == 0) {
+            inTiles = false;
+            std::cout << "End of tiles array, parsed " << levelData.size() << " rows" << std::endl;
+        }
+        else if (line.find("\"entrancePortal\":{") != std::string::npos) {
+            // Parser le portail d'entrée
+            size_t xPos = line.find("\"x\":");
+            size_t yPos = line.find("\"y\":");
+            if (xPos != std::string::npos && yPos != std::string::npos) {
+                int x = std::stoi(line.substr(xPos + 4, line.find(",", xPos) - xPos - 4));
+                int y = std::stoi(line.substr(yPos + 4, line.find("}", yPos) - yPos - 4));
+                m_entrancePortalPosition = sf::Vector2f(x * 64.0f, y * 64.0f);
+                m_hasEntrancePortal = true;
+
+                // Positionner le sprite de la porte d'entrée
+                if (m_doorTextureLoaded && m_entranceDoorSprite) {
+                    // Positionner la porte pour qu'elle soit sur le sol
+                    // La porte fait 312 pixels de haut, on la place au-dessus du portail
+                    float doorX = x * 64.0f - 52.0f;  // Centrer horizontalement (156/2 - 64/2)
+                    float doorY = y * 64.0f - 312.0f + 64.0f;  // Placer au-dessus du sol
+                    m_entranceDoorSprite->setPosition(sf::Vector2f(doorX, doorY));
+                }
+
+                std::cout << "Entrance portal found at: (" << x << ", " << y << ")" << std::endl;
+            }
+        }
+        else if (line.find("\"exitPortal\":{") != std::string::npos) {
+            // Parser le portail de sortie
+            size_t xPos = line.find("\"x\":");
+            size_t yPos = line.find("\"y\":");
+            if (xPos != std::string::npos && yPos != std::string::npos) {
+                int x = std::stoi(line.substr(xPos + 4, line.find(",", xPos) - xPos - 4));
+                int y = std::stoi(line.substr(yPos + 4, line.find("}", yPos) - yPos - 4));
+                m_exitPortalPosition = sf::Vector2f(x * 64.0f, y * 64.0f);
+                m_hasExitPortal = true;
+
+                // Positionner le sprite de la porte de sortie
+                if (m_doorTextureLoaded && m_exitDoorSprite) {
+                    // Positionner la porte pour qu'elle soit sur le sol
+                    // La porte fait 312 pixels de haut, on la place au-dessus du portail
+                    float doorX = x * 64.0f - 52.0f;  // Centrer horizontalement (156/2 - 64/2)
+                    float doorY = y * 64.0f - 312.0f + 64.0f;  // Placer au-dessus du sol
+                    m_exitDoorSprite->setPosition(sf::Vector2f(doorX, doorY));
+                }
+
+                std::cout << "Exit portal found at: (" << x << ", " << y << ")" << std::endl;
+            }
+        }
+    }
+
+    file.close();
+
+    if (levelData.empty()) {
+        std::cerr << "No level data found in file" << std::endl;
+        return false;
+    }
+
+    // Charger les données dans la tilemap
+    m_tilemap->loadFromData(levelData, 14);  // 14 tiles par ligne dans le tileset
+
+    // Ligne d'arrivée à la fin du niveau
+    m_finishLine = sf::FloatRect(
+        sf::Vector2f((width - 1) * 64.0f, 0),
+        sf::Vector2f(64.0f, 64.0f * height)
+    );
+
+    std::cout << "Level loaded successfully: " << width << "x" << height << std::endl;
     return true;
 }
 
@@ -231,25 +373,110 @@ void Level::handlePlayerCollision(Player& player) {
 }
 
 bool Level::isPlayerAtFinish(const Player& player) const {
+    // Vérifier si le joueur est au centre horizontal du portail de sortie (toute hauteur)
+    if (!m_hasExitPortal) {
+        return false;
+    }
+
     sf::Vector2f playerPos = player.getPosition();
+    const float playerWidth = 102.0f;
 
-    // Vérifier si le centre du joueur a franchi la ligne d'arrivée (pas juste une intersection)
-    float playerCenterX = playerPos.x + 102.0f / 2.0f;  // Centre horizontal du joueur
-    float finishLineX = m_finishLine.position.x;
+    // Calculer le centre horizontal du joueur
+    float playerCenterX = playerPos.x + playerWidth / 2.0f;
 
-    // Le joueur doit avoir franchi la ligne d'arrivée
-    return playerCenterX >= finishLineX;
+    // Calculer le centre horizontal du portail de sortie
+    float portalCenterX = m_exitPortalPosition.x + 32.0f;
+
+    // Calculer la distance horizontale uniquement
+    float dx = std::abs(playerCenterX - portalCenterX);
+
+    // Le joueur doit être très proche du centre horizontal (20 pixels de tolérance)
+    return dx < 20.0f;
+}
+
+bool Level::isLevelValid(int levelNumber) {
+    std::string filename = "levels/level_" + std::to_string(levelNumber) + ".json";
+
+    std::cout << "  Checking if level is valid: " << filename << std::endl;
+
+    // Vérifier si le fichier existe
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "  ERROR: Cannot open file " << filename << std::endl;
+        return false;
+    }
+
+    std::cout << "  File opened successfully" << std::endl;
+
+    // Parser le JSON pour vérifier les portails
+    std::string line;
+    bool hasEntrancePortal = false;
+    bool hasExitPortal = false;
+
+    while (std::getline(file, line)) {
+        line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+
+        if (line.find("\"entrancePortal\":{") != std::string::npos) {
+            hasEntrancePortal = true;
+            std::cout << "  Found entrance portal" << std::endl;
+        }
+        else if (line.find("\"exitPortal\":{") != std::string::npos) {
+            hasExitPortal = true;
+            std::cout << "  Found exit portal" << std::endl;
+        }
+    }
+
+    file.close();
+
+    std::cout << "  Entrance portal: " << (hasEntrancePortal ? "YES" : "NO") << std::endl;
+    std::cout << "  Exit portal: " << (hasExitPortal ? "YES" : "NO") << std::endl;
+
+    // Le niveau est valide s'il a les deux portails
+    bool isValid = hasEntrancePortal && hasExitPortal;
+    std::cout << "  Level is valid: " << (isValid ? "YES" : "NO") << std::endl;
+    return isValid;
 }
 
 void Level::render(sf::RenderWindow& window) {
     // Dessiner la tilemap
     m_tilemap->render(window);
 
-    // Dessiner la ligne d'arrivée (drapeau visuel)
-    sf::RectangleShape finishFlag(sf::Vector2f(m_finishLine.size.x, m_finishLine.size.y));
-    finishFlag.setPosition(sf::Vector2f(m_finishLine.position.x, m_finishLine.position.y));
-    finishFlag.setFillColor(sf::Color(255, 215, 0, 100)); // Or transparent
-    finishFlag.setOutlineColor(sf::Color(255, 215, 0));
-    finishFlag.setOutlineThickness(2.0f);
-    window.draw(finishFlag);
+    // Dessiner les portes médiévales si elles sont chargées
+    if (m_doorTextureLoaded) {
+        if (m_hasEntrancePortal && m_entranceDoorSprite) {
+            window.draw(*m_entranceDoorSprite);
+        }
+    }
+
+    // Dessiner le portail de sortie (même style que dans l'éditeur - cyan)
+    if (m_hasExitPortal) {
+        float centerX = m_exitPortalPosition.x + 32.0f;
+        float centerY = m_exitPortalPosition.y + 32.0f;
+        const float tileSize = 64.0f;
+
+        // Cercle extérieur (lueur cyan)
+        sf::CircleShape outerGlow(tileSize * 0.6f);
+        outerGlow.setOrigin(sf::Vector2f(tileSize * 0.6f, tileSize * 0.6f));
+        outerGlow.setPosition(sf::Vector2f(centerX, centerY));
+        outerGlow.setFillColor(sf::Color(0, 255, 255, 50));
+        outerGlow.setOutlineColor(sf::Color(0, 255, 255, 150));
+        outerGlow.setOutlineThickness(3.0f);
+        window.draw(outerGlow);
+
+        // Cercle du milieu
+        sf::CircleShape middleRing(tileSize * 0.4f);
+        middleRing.setOrigin(sf::Vector2f(tileSize * 0.4f, tileSize * 0.4f));
+        middleRing.setPosition(sf::Vector2f(centerX, centerY));
+        middleRing.setFillColor(sf::Color(0, 150, 255, 100));
+        middleRing.setOutlineColor(sf::Color(100, 200, 255, 200));
+        middleRing.setOutlineThickness(2.0f);
+        window.draw(middleRing);
+
+        // Point central brillant
+        sf::CircleShape innerCore(tileSize * 0.2f);
+        innerCore.setOrigin(sf::Vector2f(tileSize * 0.2f, tileSize * 0.2f));
+        innerCore.setPosition(sf::Vector2f(centerX, centerY));
+        innerCore.setFillColor(sf::Color(255, 255, 255, 200));
+        window.draw(innerCore);
+    }
 }

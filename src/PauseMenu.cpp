@@ -4,8 +4,9 @@
 PauseMenu::PauseMenu()
     : m_selectedIndex(0)
     , m_currentAction(MenuAction::None)
+    , m_isEditorMode(false)
 {
-    m_menuItems = {"Continuer", "Quitter"};
+    m_menuItems = {"Continuer", "Recommencer", "Quitter"};
 
     // Charger la police - essayer plusieurs chemins possibles
     bool fontLoaded = false;
@@ -101,6 +102,9 @@ void PauseMenu::handleInput(sf::Keyboard::Key key) {
                 m_currentAction = MenuAction::Continue;
                 std::cout << "Menu: Action = Continue" << std::endl;
             } else if (m_selectedIndex == 1) {
+                m_currentAction = MenuAction::Restart;
+                std::cout << "Menu: Action = Restart" << std::endl;
+            } else if (m_selectedIndex == 2) {
                 m_currentAction = MenuAction::Quit;
                 std::cout << "Menu: Action = Quit" << std::endl;
             }
@@ -146,4 +150,8 @@ void PauseMenu::resetAction() {
     m_currentAction = MenuAction::None;
     m_selectedIndex = 0;
     updateSelection();
+}
+
+void PauseMenu::setEditorMode(bool isEditor) {
+    m_isEditorMode = isEditor;
 }

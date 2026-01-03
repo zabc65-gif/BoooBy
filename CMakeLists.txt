@@ -29,8 +29,16 @@ target_link_libraries(${PROJECT_NAME}
     SFML::Audio
 )
 
-# Copy assets to build directory
+# Copy assets to build directory (configuration time)
 file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+
+# Copy levels directory at build time (to get latest changes)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/levels
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/levels
+    COMMENT "Copying levels directory to build folder"
+)
 
 # Platform specific settings
 if(APPLE)
