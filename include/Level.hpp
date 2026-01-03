@@ -30,6 +30,11 @@ public:
     // Vérifier si un niveau est valide (fichier existe + a les 2 portails)
     static bool isLevelValid(int levelNumber);
 
+    // Accès aux dimensions du niveau
+    int getWidth() const { return m_tilemap->getWidth(); }
+    int getHeight() const { return m_tilemap->getHeight(); }
+    int getTileSize() const { return m_tilemap->getTileSize(); }
+
 private:
     void createSimpleLevel();
 

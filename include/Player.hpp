@@ -1,7 +1,9 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <memory>
+#include "ParticleSystem.hpp"
 
 class Player {
 public:
@@ -30,6 +32,19 @@ public:
     bool isGrounded() const { return m_isGrounded; }
 
     void setState(State state) { m_state = state; }
+
+    // Système de vie
+    int getHealth() const { return m_health; }
+    int getMaxHealth() const { return m_maxHealth; }
+    void takeDamage(int damage);
+    void resetHealth() { m_health = m_maxHealth; }
+    bool isDead() const { return m_health <= 0; }
+
+    // Désintégration
+    void triggerDisintegration();
+    void resetDisintegration() { m_isDisintegrating = false; }
+    bool isDisintegrating() const { return m_isDisintegrating; }
+    ParticleSystem& getParticleSystem() { return m_particleSystem; }
 
 private:
     void updatePhysics(sf::Time deltaTime);
@@ -69,4 +84,16 @@ private:
     std::unique_ptr<sf::Sprite> m_sprite;
     int m_currentFrame;
     float m_frameTimer;
+
+    // Son
+    sf::SoundBuffer m_jumpSoundBuffer;
+    std::unique_ptr<sf::Sound> m_jumpSound;
+
+    // Vie
+    int m_health;
+    int m_maxHealth;
+
+    // Désintégration
+    ParticleSystem m_particleSystem;
+    bool m_isDisintegrating;
 };

@@ -13,6 +13,9 @@ Player::Player()
     , m_facingRight(true)
     , m_currentFrame(0)
     , m_frameTimer(0.0f)
+    , m_health(5)
+    , m_maxHealth(5)
+    , m_isDisintegrating(false)
 {
     // Charger toutes les animations
     std::cout << "Chargement des animations du Blue Wizard..." << std::endl;
@@ -28,6 +31,15 @@ Player::Player()
         std::cout << "✓ Animations chargées avec succès!" << std::endl;
     } else {
         std::cerr << "✗ Échec du chargement des animations!" << std::endl;
+    }
+
+    // Charger le son de saut
+    if (m_jumpSoundBuffer.loadFromFile("assets/sounds/jump1.wav")) {
+        m_jumpSound = std::make_unique<sf::Sound>(m_jumpSoundBuffer);
+        m_jumpSound->setVolume(50.0f); // Volume à 50%
+        std::cout << "✓ Son de saut chargé avec succès!" << std::endl;
+    } else {
+        std::cerr << "✗ Échec du chargement du son de saut (assets/sounds/jump1.wav)" << std::endl;
     }
 }
 
@@ -69,6 +81,10 @@ void Player::handleInput(sf::Keyboard::Key key, bool isPressed) {
                 m_velocity.y = JUMP_FORCE;
                 m_state = State::Jumping;
                 m_isGrounded = false;
+                // Jouer le son de saut
+                if (m_jumpSound) {
+                    m_jumpSound->play();
+                }
             }
             break;
 
@@ -78,6 +94,12 @@ void Player::handleInput(sf::Keyboard::Key key, bool isPressed) {
 }
 
 void Player::update(sf::Time deltaTime) {
+    // Si le joueur est en train de se désintégrer, ne plus mettre à jour la physique
+    if (m_isDisintegrating) {
+        m_particleSystem.update(deltaTime);
+        return;
+    }
+
     updatePhysics(deltaTime);
     updateAnimation(deltaTime);
 }
@@ -174,6 +196,12 @@ void Player::updateAnimation(sf::Time deltaTime) {
 }
 
 void Player::render(sf::RenderWindow& window) {
+    // Si le joueur est en train de se désintégrer, afficher les particules au lieu du sprite
+    if (m_isDisintegrating) {
+        m_particleSystem.render(window);
+        return;
+    }
+
     if (!m_sprite) return;
 
     // Appliquer le flip horizontal selon la direction
@@ -202,4 +230,28 @@ void Player::render(sf::RenderWindow& window) {
         debugRect.setOutlineThickness(2.0f);
         window.draw(debugRect);
     }
+}
+
+void Player::takeDamage(int damage) {
+    m_health -= damage;
+    if (m_health < 0) {
+        m_health = 0;
+    }
+    std::cout << "Player took " << damage << " damage. Health: " << m_health << "/" << m_maxHealth << std::endl;
+}
+
+void Player::triggerDisintegration() {
+    if (m_isDisintegrating) return; // Éviter de déclencher plusieurs fois
+
+    m_isDisintegrating = true;
+
+    // Calculer la position centrale du joueur pour l'effet
+    const float playerWidth = 102.0f;
+    const float playerHeight = 102.0f;
+    sf::Vector2f centerPosition = m_position + sf::Vector2f(playerWidth / 2.0f, playerHeight / 2.0f);
+
+    // Créer l'effet de désintégration avec une couleur bleue (couleur du wizard)
+    m_particleSystem.createDisintegrationEffect(centerPosition, sf::Color(100, 150, 255));
+
+    std::cout << "Player disintegration triggered!" << std::endl;
 }

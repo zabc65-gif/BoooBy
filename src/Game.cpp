@@ -46,6 +46,16 @@ Game::Game()
     // Initialiser la caméra centrée sur le joueur
     m_camera->setPosition(m_player->getPosition());
 
+    // Charger et jouer la musique de fond
+    if (m_backgroundMusic.openFromFile("assets/music/Melasse des ombres 1.mp3")) {
+        m_backgroundMusic.setLooping(true);  // Boucler la musique
+        m_backgroundMusic.setVolume(30.0f);  // Volume à 30%
+        m_backgroundMusic.play();
+        std::cout << "✓ Musique de fond chargée et lancée!" << std::endl;
+    } else {
+        std::cerr << "✗ Échec du chargement de la musique de fond" << std::endl;
+    }
+
     std::cout << "Game initialized successfully" << std::endl;
 }
 
@@ -244,6 +254,67 @@ void Game::update(sf::Time deltaTime) {
     // Mettre à jour le niveau
     m_level->update(deltaTime, *m_player);
 
+    // Vérifier si le joueur est tombé trop bas (chute dans le vide)
+    // Le niveau fait 20 tiles de haut * 64 pixels = 1280 pixels
+    // On considère que le joueur est tombé s'il dépasse cette hauteur
+    const float levelHeight = m_level->getHeight() * m_level->getTileSize();
+    const float fallThreshold = levelHeight + 200.0f; // 200 pixels de marge
+
+    // Gérer la désintégration et les chutes
+    static sf::Clock disintegrationClock;
+    static bool disintegrationStarted = false;
+    static sf::Vector2f respawnPosition;
+    static bool isDeath = false; // true si c'est une mort (0 HP), false si c'est juste une chute
+
+    if (m_player->getPosition().y > fallThreshold && !m_player->isDisintegrating()) {
+        // Le joueur est tombé hors du niveau
+        std::cout << "Player fell out of bounds! Triggering disintegration..." << std::endl;
+
+        // Perdre 1 point de vie (1/5 de la vie totale)
+        m_player->takeDamage(1);
+
+        // Déclencher la désintégration
+        m_player->triggerDisintegration();
+        disintegrationClock.restart();
+        disintegrationStarted = true;
+
+        // Vérifier si le joueur est mort (0 HP)
+        if (m_player->isDead()) {
+            std::cout << "Player died! Health reached 0." << std::endl;
+            isDeath = true;
+        } else {
+            // Sinon, préparer la position de respawn
+            isDeath = false;
+            if (m_level->hasEntrancePortal()) {
+                sf::Vector2f portalPos = m_level->getEntrancePortalPosition();
+                respawnPosition.x = portalPos.x + 32.0f - 51.0f;
+                respawnPosition.y = portalPos.y + 32.0f - 51.0f;
+            }
+        }
+    }
+
+    // Si la désintégration est en cours, attendre qu'elle soit terminée
+    if (disintegrationStarted && m_player->isDisintegrating()) {
+        // Attendre 2 secondes pour laisser l'animation se jouer
+        if (disintegrationClock.getElapsedTime().asSeconds() >= 2.0f) {
+            std::cout << "Disintegration complete..." << std::endl;
+            disintegrationStarted = false;
+
+            if (isDeath) {
+                // Mort complète: redémarrer depuis le prologue
+                std::cout << "Restarting from prologue..." << std::endl;
+                restartGame();
+            } else {
+                // Juste une chute: repositionner le joueur
+                std::cout << "Respawning at entrance portal..." << std::endl;
+                m_player->resetDisintegration();
+                m_player->setPosition(respawnPosition);
+                m_player->setVelocity(sf::Vector2f(0.0f, 0.0f));
+                m_camera->setPosition(respawnPosition);
+            }
+        }
+    }
+
     // Vérifier si le joueur a atteint le portail de sortie
     if (m_level->isPlayerAtFinish(*m_player)) {
         m_isFinished = true;
@@ -293,6 +364,54 @@ void Game::render() {
 
     // Revenir à la vue par défaut pour l'interface utilisateur (menu pause)
     m_window.setView(m_window.getDefaultView());
+
+    // Afficher la barre de vie en haut à gauche (sauf en mode éditeur)
+    if (!m_isEditorMode) {
+        const float barX = 20.0f;
+        const float barY = 20.0f;
+        const float barWidth = 200.0f;
+        const float barHeight = 15.0f;
+        const float borderThickness = 2.0f;
+
+        // Fond de la barre (gris foncé)
+        sf::RectangleShape healthBarBg(sf::Vector2f(barWidth, barHeight));
+        healthBarBg.setPosition(sf::Vector2f(barX, barY));
+        healthBarBg.setFillColor(sf::Color(40, 40, 40));
+        healthBarBg.setOutlineColor(sf::Color(200, 200, 200));
+        healthBarBg.setOutlineThickness(borderThickness);
+        m_window.draw(healthBarBg);
+
+        // Barre de vie (rouge qui devient orange/jaune selon la vie)
+        float healthRatio = static_cast<float>(m_player->getHealth()) / static_cast<float>(m_player->getMaxHealth());
+        float currentBarWidth = barWidth * healthRatio;
+
+        // Couleur en fonction de la vie restante
+        sf::Color healthColor;
+        if (healthRatio > 0.6f) {
+            healthColor = sf::Color(50, 200, 50); // Vert
+        } else if (healthRatio > 0.3f) {
+            healthColor = sf::Color(255, 200, 0); // Orange
+        } else {
+            healthColor = sf::Color(220, 50, 50); // Rouge
+        }
+
+        sf::RectangleShape healthBar(sf::Vector2f(currentBarWidth, barHeight));
+        healthBar.setPosition(sf::Vector2f(barX, barY));
+        healthBar.setFillColor(healthColor);
+        m_window.draw(healthBar);
+
+        // Effet de lueur sur la barre
+        sf::RectangleShape healthGlow(sf::Vector2f(currentBarWidth, barHeight));
+        healthGlow.setPosition(sf::Vector2f(barX, barY));
+        healthGlow.setFillColor(sf::Color(255, 255, 255, 50));
+        m_window.draw(healthGlow);
+
+        // Texte de la vie (petit, élégant)
+        sf::Text healthText(m_font, std::to_string(m_player->getHealth()) + " / " + std::to_string(m_player->getMaxHealth()), 14);
+        healthText.setPosition(sf::Vector2f(barX + barWidth + 10.0f, barY - 2.0f));
+        healthText.setFillColor(sf::Color::White);
+        m_window.draw(healthText);
+    }
 
     // Afficher le titre du jeu si on est au niveau prologue (niveau 0)
     if (m_currentLevelNumber == 0 && !m_isFinished && !m_isGameComplete) {
@@ -436,6 +555,9 @@ void Game::restartGame() {
     m_isGameComplete = false;
     m_currentLevelNumber = 0;
 
+    // Réinitialiser la vie du joueur
+    m_player->resetHealth();
+
     // Charger le niveau prologue
     if (m_level->loadFromFile("levels/prologue.json")) {
         if (m_level->hasEntrancePortal()) {
@@ -445,6 +567,7 @@ void Game::restartGame() {
             playerStartPos.x = portalPos.x + 32.0f - 51.0f;  // Centre du portail - moitié largeur joueur
             playerStartPos.y = portalPos.y + 32.0f - 51.0f;  // Centre du portail - moitié hauteur joueur
             m_player->setPosition(playerStartPos);
+            m_player->setVelocity(sf::Vector2f(0.0f, 0.0f));
             m_camera->setPosition(playerStartPos);
             std::cout << "Game restarted successfully!" << std::endl;
         }

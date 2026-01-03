@@ -47,4 +47,7 @@ private:
     bool m_isGameComplete;  // Vrai quand tous les niveaux sont terminés
     int m_currentLevelNumber;  // 0 = prologue, 1+ = niveaux numérotés
     sf::Font m_font;
+
+    // Musique
+    sf::Music m_backgroundMusic;
 };
