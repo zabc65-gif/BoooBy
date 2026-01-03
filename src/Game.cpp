@@ -15,6 +15,7 @@ Game::Game()
     , m_isFinished(false)
     , m_isEditorMode(false)
     , m_isGameComplete(false)
+    , m_isGameOver(false)
     , m_currentLevelNumber(0)  // Commencer au prologue
 {
     m_window.setFramerateLimit(60);
@@ -146,8 +147,12 @@ void Game::processEvents() {
                 }
             }
 
+            // Si le jeu est terminé (game over), gérer le menu de game over
+            if (m_isGameOver) {
+                handleMenuInput(keyPressed->code);
+            }
             // Si le jeu est complété, gérer le menu de victoire finale
-            if (m_isGameComplete) {
+            else if (m_isGameComplete) {
                 handleMenuInput(keyPressed->code);
             }
             // Passer l'événement à l'éditeur si actif (sauf si l'éditeur est en pause)
@@ -214,6 +219,7 @@ void Game::processEvents() {
             m_window.close();
         }
     }
+
 }
 
 void Game::update(sf::Time deltaTime) {
@@ -224,6 +230,7 @@ void Game::update(sf::Time deltaTime) {
     }
 
     if (m_isGameComplete) return; // Ne plus rien faire si le jeu est complété
+    if (m_isGameOver) return; // Ne rien mettre à jour si le jeu est terminé (game over)
     if (m_isPaused) return; // Ne rien mettre à jour si le jeu est en pause
 
     // Si le niveau est terminé, gérer la transition
@@ -301,9 +308,10 @@ void Game::update(sf::Time deltaTime) {
             disintegrationStarted = false;
 
             if (isDeath) {
-                // Mort complète: redémarrer depuis le prologue
-                std::cout << "Restarting from prologue..." << std::endl;
-                restartGame();
+                // Mort complète: afficher le menu de game over
+                std::cout << "Player is dead! Showing game over menu..." << std::endl;
+                m_isGameOver = true;
+                m_pauseMenu->resetAction();
             } else {
                 // Juste une chute: repositionner le joueur
                 std::cout << "Respawning at entrance portal..." << std::endl;
@@ -450,6 +458,11 @@ void Game::render() {
         showVictoryMessage();
     }
 
+    // Afficher le menu de game over si le joueur est mort
+    if (m_isGameOver) {
+        showGameOverMenu();
+    }
+
     // Afficher le menu de victoire finale si le jeu est complété
     if (m_isGameComplete) {
         showFinalVictoryMenu();
@@ -490,8 +503,19 @@ void Game::handlePlayerInput(sf::Keyboard::Key key, bool isPressed) {
 }
 
 void Game::handleMenuInput(sf::Keyboard::Key key) {
+    // Si le joueur est mort (game over), gérer les inputs du menu de game over
+    if (m_isGameOver) {
+        if (key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space) {
+            std::cout << "Restarting from game over (Enter pressed)..." << std::endl;
+            m_isGameOver = false;
+            restartGame();
+        } else if (key == sf::Keyboard::Key::Escape) {
+            std::cout << "Quitting from game over (Escape pressed)..." << std::endl;
+            m_window.close();
+        }
+    }
     // Si le jeu est complété, gérer les inputs du menu de victoire finale
-    if (m_isGameComplete) {
+    else if (m_isGameComplete) {
         if (key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space) {
             restartGame();
         } else if (key == sf::Keyboard::Key::Escape) {
@@ -553,10 +577,12 @@ void Game::restartGame() {
     // Réinitialiser les flags
     m_isFinished = false;
     m_isGameComplete = false;
+    m_isGameOver = false;
     m_currentLevelNumber = 0;
 
-    // Réinitialiser la vie du joueur
+    // Réinitialiser la vie et l'état du joueur
     m_player->resetHealth();
+    m_player->resetDisintegration();
 
     // Charger le niveau prologue
     if (m_level->loadFromFile("levels/prologue.json")) {
@@ -596,6 +622,62 @@ void Game::showFinalVictoryMenu() {
     // Message "Jeu termine!"
     sf::Text messageText(m_font, "Vous avez termine tous les niveaux !", 40);
     messageText.setFillColor(sf::Color::White);
+
+    sf::FloatRect messageBounds = messageText.getLocalBounds();
+    messageText.setOrigin(sf::Vector2f(messageBounds.position.x + messageBounds.size.x / 2.0f,
+                                        messageBounds.position.y + messageBounds.size.y / 2.0f));
+    messageText.setPosition(sf::Vector2f(640.0f, 350.0f));
+    m_window.draw(messageText);
+
+    // Bouton "Recommencer"
+    sf::RectangleShape restartButton(sf::Vector2f(300.0f, 60.0f));
+    restartButton.setPosition(sf::Vector2f(490.0f, 450.0f));
+    restartButton.setFillColor(sf::Color(100, 150, 200));
+    restartButton.setOutlineColor(sf::Color::White);
+    restartButton.setOutlineThickness(3.0f);
+    m_window.draw(restartButton);
+
+    sf::Text restartText(m_font, "Recommencer (ENTREE)", 24);
+    restartText.setFillColor(sf::Color::White);
+    restartText.setPosition(sf::Vector2f(520.0f, 465.0f));
+    m_window.draw(restartText);
+
+    // Bouton "Quitter"
+    sf::RectangleShape quitButton(sf::Vector2f(300.0f, 60.0f));
+    quitButton.setPosition(sf::Vector2f(490.0f, 540.0f));
+    quitButton.setFillColor(sf::Color(150, 50, 50));
+    quitButton.setOutlineColor(sf::Color::White);
+    quitButton.setOutlineThickness(3.0f);
+    m_window.draw(quitButton);
+
+    sf::Text quitText(m_font, "Quitter (ECHAP)", 24);
+    quitText.setFillColor(sf::Color::White);
+    quitText.setPosition(sf::Vector2f(545.0f, 555.0f));
+    m_window.draw(quitText);
+}
+
+void Game::showGameOverMenu() {
+    // Overlay semi-transparent rouge foncé pour l'ambiance de game over
+    sf::RectangleShape overlay(sf::Vector2f(1280.0f, 720.0f));
+    overlay.setFillColor(sf::Color(80, 0, 0, 200));
+    m_window.draw(overlay);
+
+    // Titre "VOUS ETES MORT !!"
+    sf::Text titleText(m_font, "VOUS ETES MORT !!", 100);
+    titleText.setFillColor(sf::Color(255, 50, 50));
+    titleText.setOutlineColor(sf::Color(150, 0, 0));
+    titleText.setOutlineThickness(5.0f);
+    titleText.setStyle(sf::Text::Bold);
+
+    sf::FloatRect titleBounds = titleText.getLocalBounds();
+    titleText.setOrigin(sf::Vector2f(titleBounds.position.x + titleBounds.size.x / 2.0f,
+                                      titleBounds.position.y + titleBounds.size.y / 2.0f));
+    titleText.setPosition(sf::Vector2f(640.0f, 200.0f));
+    m_window.draw(titleText);
+
+    // Message "Partie terminée"
+    sf::Text messageText(m_font, "Partie terminee", 40);
+    messageText.setFillColor(sf::Color(200, 200, 200));
 
     sf::FloatRect messageBounds = messageText.getLocalBounds();
     messageText.setOrigin(sf::Vector2f(messageBounds.position.x + messageBounds.size.x / 2.0f,

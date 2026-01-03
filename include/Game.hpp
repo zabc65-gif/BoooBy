@@ -27,6 +27,7 @@ private:
 
     void showVictoryMessage();
     void showFinalVictoryMenu();
+    void showGameOverMenu();
     void loadNextLevel();
     void restartGame();
 
@@ -45,6 +46,7 @@ private:
     bool m_isFinished;
     bool m_isEditorMode;
     bool m_isGameComplete;  // Vrai quand tous les niveaux sont terminés
+    bool m_isGameOver;      // Vrai quand le joueur est mort (0 HP)
     int m_currentLevelNumber;  // 0 = prologue, 1+ = niveaux numérotés
     sf::Font m_font;
 
