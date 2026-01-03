@@ -4,7 +4,6 @@
 #include <SFML/Audio.hpp>
 #include <memory>
 #include "Player.hpp"
-#include "Door.hpp"
 #include "PauseMenu.hpp"
 #include "Camera.hpp"
 #include "Level.hpp"
@@ -36,7 +35,6 @@ private:
 
     sf::RenderWindow m_window;
     std::unique_ptr<Player> m_player;
-    std::unique_ptr<Door> m_entranceDoor;
     std::unique_ptr<PauseMenu> m_pauseMenu;
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<Level> m_level;

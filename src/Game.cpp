@@ -6,7 +6,6 @@ const sf::Time Game::TimePerFrame = sf::seconds(1.f / 60.f);
 Game::Game()
     : m_window(sf::VideoMode({1280, 720}), "BoooBee - Sheepy Remake", sf::Style::Close)
     , m_player(std::make_unique<Player>())
-    , m_entranceDoor(std::make_unique<Door>(sf::Vector2f(50.0f, 380.0f)))
     , m_pauseMenu(std::make_unique<PauseMenu>())
     , m_camera(std::make_unique<Camera>(1280.0f, 720.0f))
     , m_level(std::make_unique<Level>())
@@ -363,9 +362,6 @@ void Game::render() {
 
     // Dessiner le niveau
     m_level->render(m_window);
-
-    // Dessiner la porte d'entrée
-    m_entranceDoor->render(m_window);
 
     // Dessiner le joueur
     m_player->render(m_window);
