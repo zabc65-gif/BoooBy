@@ -50,4 +50,7 @@ private:
     std::unique_ptr<sf::Sprite> m_entranceDoorSprite;
     std::unique_ptr<sf::Sprite> m_exitDoorSprite;
     bool m_doorTextureLoaded;
+
+    // Info du niveau
+    bool m_isPrologueLevel;  // true si c'est le niveau prologue
 };

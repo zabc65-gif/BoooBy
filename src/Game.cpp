@@ -4,7 +4,7 @@
 const sf::Time Game::TimePerFrame = sf::seconds(1.f / 60.f);
 
 Game::Game()
-    : m_window(sf::VideoMode({1280, 720}), "BoooBy - Sheepy Remake", sf::Style::Close)
+    : m_window(sf::VideoMode({1280, 720}), "BoooBee - Sheepy Remake", sf::Style::Close)
     , m_player(std::make_unique<Player>())
     , m_entranceDoor(std::make_unique<Door>(sf::Vector2f(50.0f, 380.0f)))
     , m_pauseMenu(std::make_unique<PauseMenu>())
@@ -293,6 +293,38 @@ void Game::render() {
 
     // Revenir à la vue par défaut pour l'interface utilisateur (menu pause)
     m_window.setView(m_window.getDefaultView());
+
+    // Afficher le titre du jeu si on est au niveau prologue (niveau 0)
+    if (m_currentLevelNumber == 0 && !m_isFinished && !m_isGameComplete) {
+        // Titre "BoooBee" en gros et en jaune
+        sf::Text titleText(m_font, "BoooBee", 140);
+        titleText.setFillColor(sf::Color(255, 215, 0)); // Jaune doré
+        titleText.setOutlineColor(sf::Color::White);
+        titleText.setOutlineThickness(6.0f);
+        titleText.setStyle(sf::Text::Bold);
+
+        sf::FloatRect titleBounds = titleText.getLocalBounds();
+        titleText.setOrigin(sf::Vector2f(titleBounds.position.x + titleBounds.size.x / 2.0f,
+                                          titleBounds.position.y + titleBounds.size.y / 2.0f));
+        titleText.setPosition(sf::Vector2f(640.0f, 120.0f)); // En haut au centre
+
+        // Halo lumineux rectangulaire qui prend toute la base du texte (comme si les lettres brillaient)
+        float textWidth = titleBounds.size.x;
+        float textHeight = titleBounds.size.y;
+
+        // Dessiner plusieurs rectangles avec opacité décroissante pour l'effet de lueur
+        for (int i = 6; i >= 1; --i) {
+            sf::RectangleShape glow(sf::Vector2f(textWidth + i * 30.0f, textHeight + i * 20.0f));
+            glow.setOrigin(sf::Vector2f((textWidth + i * 30.0f) / 2.0f, (textHeight + i * 20.0f) / 2.0f));
+            glow.setPosition(sf::Vector2f(640.0f, 120.0f));
+            int alpha = 20 - i * 3; // Opacité décroissante
+            glow.setFillColor(sf::Color(255, 215, 0, alpha)); // Jaune doré avec transparence
+            m_window.draw(glow);
+        }
+
+        // Dessiner le titre par-dessus le halo
+        m_window.draw(titleText);
+    }
 
     // Afficher le message de victoire si le niveau est terminé
     if (m_isFinished && !m_isGameComplete) {

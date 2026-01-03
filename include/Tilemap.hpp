@@ -30,6 +30,9 @@ public:
     int getHeight() const { return m_height; }
 
 private:
+    // Debug constants
+    static constexpr bool SHOW_DEBUG_TILE_OUTLINE = false; // Mettre à true pour afficher les contours rouges des tuiles
+
     int m_tileSize;
     int m_width;
     int m_height;

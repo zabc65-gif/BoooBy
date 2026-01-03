@@ -49,6 +49,9 @@ private:
     bool m_isGrounded;
     bool m_facingRight;
 
+    // Debug constants
+    static constexpr bool SHOW_DEBUG_HITBOX = false; // Mettre à true pour afficher la hitbox rouge
+
     // Physics constants
     static constexpr float GRAVITY = 980.0f;
     static constexpr float WALK_SPEED = 150.0f;

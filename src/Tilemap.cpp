@@ -147,12 +147,15 @@ void Tilemap::render(sf::RenderWindow& window) {
             window.draw(tileSprite);
 
             // Dessiner un cadre rouge autour de chaque tile pour debug
-            sf::RectangleShape tileDebugRect(sf::Vector2f(displaySize, displaySize));
-            tileDebugRect.setPosition(sf::Vector2f(x * displaySize, y * displaySize));
-            tileDebugRect.setFillColor(sf::Color::Transparent);
-            tileDebugRect.setOutlineColor(sf::Color::Red);
-            tileDebugRect.setOutlineThickness(1.0f);
-            window.draw(tileDebugRect);
+            // Pour activer: mettre SHOW_DEBUG_TILE_OUTLINE à true dans Tilemap.hpp
+            if constexpr (SHOW_DEBUG_TILE_OUTLINE) {
+                sf::RectangleShape tileDebugRect(sf::Vector2f(displaySize, displaySize));
+                tileDebugRect.setPosition(sf::Vector2f(x * displaySize, y * displaySize));
+                tileDebugRect.setFillColor(sf::Color::Transparent);
+                tileDebugRect.setOutlineColor(sf::Color::Red);
+                tileDebugRect.setOutlineThickness(1.0f);
+                window.draw(tileDebugRect);
+            }
         }
     }
 }

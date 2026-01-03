@@ -13,9 +13,10 @@ Level::Level()
     , m_exitPortalPosition(0.0f, 0.0f)
     , m_hasExitPortal(false)
     , m_doorTextureLoaded(false)
+    , m_isPrologueLevel(false)
 {
-    // Charger la texture de la porte médiévale
-    if (m_doorTexture.loadFromFile("assets/tiles/Medieval_door_large.png")) {
+    // Charger la texture de la porte médiévale (taille moyenne - 1.5x hauteur joueur)
+    if (m_doorTexture.loadFromFile("assets/tiles/Medieval_door_medium.png")) {
         m_doorTextureLoaded = true;
         m_entranceDoorSprite = std::make_unique<sf::Sprite>(m_doorTexture);
         m_exitDoorSprite = std::make_unique<sf::Sprite>(m_doorTexture);
@@ -37,6 +38,9 @@ bool Level::load() {
 
 bool Level::loadFromFile(const std::string& filepath) {
     std::cout << "Loading level from: " << filepath << std::endl;
+
+    // Détecter si c'est le niveau prologue
+    m_isPrologueLevel = (filepath.find("prologue") != std::string::npos);
 
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -109,9 +113,9 @@ bool Level::loadFromFile(const std::string& filepath) {
                 // Positionner le sprite de la porte d'entrée
                 if (m_doorTextureLoaded && m_entranceDoorSprite) {
                     // Positionner la porte pour qu'elle soit sur le sol
-                    // La porte fait 312 pixels de haut, on la place au-dessus du portail
-                    float doorX = x * 64.0f - 52.0f;  // Centrer horizontalement (156/2 - 64/2)
-                    float doorY = y * 64.0f - 312.0f + 64.0f;  // Placer au-dessus du sol
+                    // La porte fait 156 pixels de haut (taille moyenne), on la place au-dessus du portail
+                    float doorX = x * 64.0f + 32.0f - 39.0f;  // Centrer horizontalement (78/2 = 39 pixels)
+                    float doorY = y * 64.0f - 156.0f + 64.0f;  // Placer au-dessus du sol (hauteur 156)
                     m_entranceDoorSprite->setPosition(sf::Vector2f(doorX, doorY));
                 }
 
@@ -131,9 +135,9 @@ bool Level::loadFromFile(const std::string& filepath) {
                 // Positionner le sprite de la porte de sortie
                 if (m_doorTextureLoaded && m_exitDoorSprite) {
                     // Positionner la porte pour qu'elle soit sur le sol
-                    // La porte fait 312 pixels de haut, on la place au-dessus du portail
-                    float doorX = x * 64.0f - 52.0f;  // Centrer horizontalement (156/2 - 64/2)
-                    float doorY = y * 64.0f - 312.0f + 64.0f;  // Placer au-dessus du sol
+                    // La porte fait 156 pixels de haut (taille moyenne), on la place au-dessus du portail
+                    float doorX = x * 64.0f + 32.0f - 39.0f;  // Centrer horizontalement (78/2 = 39 pixels)
+                    float doorY = y * 64.0f - 156.0f + 64.0f;  // Placer au-dessus du sol (hauteur 156)
                     m_exitDoorSprite->setPosition(sf::Vector2f(doorX, doorY));
                 }
 
@@ -441,10 +445,43 @@ void Level::render(sf::RenderWindow& window) {
     // Dessiner la tilemap
     m_tilemap->render(window);
 
-    // Dessiner les portes médiévales si elles sont chargées
-    if (m_doorTextureLoaded) {
-        if (m_hasEntrancePortal && m_entranceDoorSprite) {
-            window.draw(*m_entranceDoorSprite);
+    // Dessiner le portail d'entrée
+    if (m_hasEntrancePortal) {
+        if (m_isPrologueLevel) {
+            // Niveau prologue : afficher la porte médiévale
+            if (m_doorTextureLoaded && m_entranceDoorSprite) {
+                window.draw(*m_entranceDoorSprite);
+            }
+        } else {
+            // Autres niveaux : afficher un portail d'entrée (vert)
+            float centerX = m_entrancePortalPosition.x + 32.0f;
+            float centerY = m_entrancePortalPosition.y + 32.0f;
+            const float tileSize = 64.0f;
+
+            // Cercle extérieur (lueur verte)
+            sf::CircleShape outerGlow(tileSize * 0.6f);
+            outerGlow.setOrigin(sf::Vector2f(tileSize * 0.6f, tileSize * 0.6f));
+            outerGlow.setPosition(sf::Vector2f(centerX, centerY));
+            outerGlow.setFillColor(sf::Color(0, 255, 0, 50));
+            outerGlow.setOutlineColor(sf::Color(0, 255, 0, 150));
+            outerGlow.setOutlineThickness(3.0f);
+            window.draw(outerGlow);
+
+            // Cercle du milieu
+            sf::CircleShape middleRing(tileSize * 0.4f);
+            middleRing.setOrigin(sf::Vector2f(tileSize * 0.4f, tileSize * 0.4f));
+            middleRing.setPosition(sf::Vector2f(centerX, centerY));
+            middleRing.setFillColor(sf::Color(0, 200, 0, 100));
+            middleRing.setOutlineColor(sf::Color(100, 255, 100, 200));
+            middleRing.setOutlineThickness(2.0f);
+            window.draw(middleRing);
+
+            // Point central brillant
+            sf::CircleShape innerCore(tileSize * 0.2f);
+            innerCore.setOrigin(sf::Vector2f(tileSize * 0.2f, tileSize * 0.2f));
+            innerCore.setPosition(sf::Vector2f(centerX, centerY));
+            innerCore.setFillColor(sf::Color(255, 255, 255, 200));
+            window.draw(innerCore);
         }
     }
 

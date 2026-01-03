@@ -1,10 +1,10 @@
-# BoooBy
+# BoooBee
 
 Remake du jeu "Sheepy: A Short Adventure" - Un jeu de plateforme 2.5D avec une ambiance sombre et féerique.
 
 ## Description
 
-BoooBy est un remake inspiré de "Sheepy: A Short Adventure", mettant en scène un mouton anthropomorphe dans un environnement de plateforme 2D avec rendu 3D. Le jeu met l'accent sur les graphismes, l'ambiance sonore et musicale pour créer une expérience immersive et courte.
+BoooBee est un remake inspiré de "Sheepy: A Short Adventure", mettant en scène un mouton anthropomorphe dans un environnement de plateforme 2D avec rendu 3D. Le jeu met l'accent sur les graphismes, l'ambiance sonore et musicale pour créer une expérience immersive et courte.
 
 ### Fonctionnalités
 
@@ -37,7 +37,7 @@ Télécharger SFML depuis [sfml-dev.org](https://www.sfml-dev.org/download.php) 
 ## Structure du projet
 
 ```
-BoooBy/
+BoooBee/
 ├── src/              # Code source C++
 │   ├── main.cpp      # Point d'entrée
 │   ├── Game.cpp      # Boucle de jeu principale
@@ -75,7 +75,7 @@ L'exécutable sera généré dans `build/bin/`.
 
 ### Lancer le jeu
 ```bash
-./build/bin/BoooBy
+./build/bin/BoooBee
 ```
 
 ### Contrôles
@@ -107,3 +107,6 @@ L'exécutable sera généré dans `build/bin/`.
 ## License
 
 Projet personnel - Remake non-commercial inspiré de "Sheepy: A Short Adventure".
+
+Lancement du jeu depuis le Mac:
+./build/bin/BoooBee.app/Contents/MacOS/BoooBee

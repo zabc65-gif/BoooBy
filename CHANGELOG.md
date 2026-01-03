@@ -1,4 +1,4 @@
-# BoooBy - Changelog
+# BoooBee - Changelog
 
 ## Version 1.0 - État Stable (2026-01-03)
 
