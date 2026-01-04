@@ -1,5 +1,6 @@
 #include "Player.hpp"
 #include <iostream>
+#include <cmath>
 
 Player::Player()
     : m_position(0.0f, 0.0f)
@@ -16,6 +17,8 @@ Player::Player()
     , m_health(5)
     , m_maxHealth(5)
     , m_isDisintegrating(false)
+    , m_hasDoubleJump(false)
+    , m_jumpsRemaining(1)
 {
     // Charger toutes les animations
     std::cout << "Chargement des animations du Blue Wizard..." << std::endl;
@@ -77,13 +80,22 @@ void Player::handleInput(sf::Keyboard::Key key, bool isPressed) {
             break;
 
         case sf::Keyboard::Key::Space:
-            if (isPressed && m_isGrounded) {
-                m_velocity.y = JUMP_FORCE;
-                m_state = State::Jumping;
-                m_isGrounded = false;
-                // Jouer le son de saut
-                if (m_jumpSound) {
-                    m_jumpSound->play();
+            if (isPressed) {
+                // Saut simple ou double saut
+                int maxJumps = m_hasDoubleJump ? 2 : 1;
+
+                if (m_jumpsRemaining > 0) {
+                    m_velocity.y = JUMP_FORCE;
+                    m_state = State::Jumping;
+                    m_isGrounded = false;
+                    m_jumpsRemaining--;
+
+                    // Jouer le son de saut
+                    if (m_jumpSound) {
+                        m_jumpSound->play();
+                    }
+
+                    std::cout << "Jump! Jumps remaining: " << m_jumpsRemaining << "/" << maxJumps << std::endl;
                 }
             }
             break;
@@ -217,6 +229,53 @@ void Player::render(sf::RenderWindow& window) {
 
     // Dessiner le sprite
     window.draw(*m_sprite);
+
+    // Dessiner les lucioles si le double saut est débloqué
+    if (m_hasDoubleJump) {
+        const float playerWidth = 102.0f;
+        const float playerHeight = 102.0f;
+        const float playerCenterX = m_position.x + playerWidth / 2.0f;
+        const float playerTopY = m_position.y - 10.0f; // Un peu au-dessus du joueur
+
+        // Animation de battement d'ailes (simple oscillation)
+        static float fireflyTimer = 0.0f;
+        fireflyTimer += 0.1f;
+        float offsetY = std::sin(fireflyTimer) * 3.0f;
+
+        // Luciole gauche (première saut disponible)
+        if (m_jumpsRemaining >= 1) {
+            sf::CircleShape firefly1(4.0f);
+            firefly1.setPosition(sf::Vector2f(playerCenterX - 15.0f, playerTopY + offsetY));
+            firefly1.setFillColor(sf::Color(255, 255, 200, 200));
+            firefly1.setOrigin(sf::Vector2f(4.0f, 4.0f));
+
+            // Lueur autour de la luciole
+            sf::CircleShape glow1(8.0f);
+            glow1.setPosition(sf::Vector2f(playerCenterX - 15.0f, playerTopY + offsetY));
+            glow1.setFillColor(sf::Color(255, 255, 100, 80));
+            glow1.setOrigin(sf::Vector2f(8.0f, 8.0f));
+
+            window.draw(glow1);
+            window.draw(firefly1);
+        }
+
+        // Luciole droite (deuxième saut disponible)
+        if (m_jumpsRemaining >= 2) {
+            sf::CircleShape firefly2(4.0f);
+            firefly2.setPosition(sf::Vector2f(playerCenterX + 15.0f, playerTopY - offsetY)); // Décalage opposé pour effet
+            firefly2.setFillColor(sf::Color(255, 255, 200, 200));
+            firefly2.setOrigin(sf::Vector2f(4.0f, 4.0f));
+
+            // Lueur autour de la luciole
+            sf::CircleShape glow2(8.0f);
+            glow2.setPosition(sf::Vector2f(playerCenterX + 15.0f, playerTopY - offsetY));
+            glow2.setFillColor(sf::Color(255, 255, 100, 80));
+            glow2.setOrigin(sf::Vector2f(8.0f, 8.0f));
+
+            window.draw(glow2);
+            window.draw(firefly2);
+        }
+    }
 
     // Dessiner le contour rouge pour debug (hitbox du joueur)
     // Pour activer: mettre SHOW_DEBUG_HITBOX à true dans Player.hpp

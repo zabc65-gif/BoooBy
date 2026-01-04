@@ -542,6 +542,12 @@ void Game::loadNextLevel() {
             m_currentLevelNumber = nextLevel;
             m_isFinished = false;
 
+            // Niveau 4 : activer le double saut
+            if (nextLevel == 4) {
+                m_player->unlockDoubleJump();
+                std::cout << "*** LEVEL 4: Double Jump unlocked! ***" << std::endl;
+            }
+
             // Repositionner le joueur au centre du portail d'entrée
             if (m_level->hasEntrancePortal()) {
                 sf::Vector2f portalPos = m_level->getEntrancePortalPosition();

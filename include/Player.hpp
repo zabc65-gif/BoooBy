@@ -28,7 +28,13 @@ public:
     sf::Vector2f getVelocity() const { return m_velocity; }
     void setVelocity(const sf::Vector2f& velocity) { m_velocity = velocity; }
 
-    void setGrounded(bool grounded) { m_isGrounded = grounded; }
+    void setGrounded(bool grounded) {
+        m_isGrounded = grounded;
+        if (grounded) {
+            // Réinitialiser les sauts quand on touche le sol
+            m_jumpsRemaining = m_hasDoubleJump ? 2 : 1;
+        }
+    }
     bool isGrounded() const { return m_isGrounded; }
 
     void setState(State state) { m_state = state; }
@@ -45,6 +51,11 @@ public:
     void resetDisintegration() { m_isDisintegrating = false; }
     bool isDisintegrating() const { return m_isDisintegrating; }
     ParticleSystem& getParticleSystem() { return m_particleSystem; }
+
+    // Double saut
+    void unlockDoubleJump() { m_hasDoubleJump = true; }
+    bool hasDoubleJump() const { return m_hasDoubleJump; }
+    int getJumpsRemaining() const { return m_jumpsRemaining; }
 
 private:
     void updatePhysics(sf::Time deltaTime);
@@ -96,4 +107,8 @@ private:
     // Désintégration
     ParticleSystem m_particleSystem;
     bool m_isDisintegrating;
+
+    // Double saut
+    bool m_hasDoubleJump;
+    int m_jumpsRemaining;  // 1 = saut simple, 2 = double saut disponible
 };
