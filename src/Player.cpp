@@ -237,21 +237,27 @@ void Player::render(sf::RenderWindow& window) {
         const float playerCenterX = m_position.x + playerWidth / 2.0f;
         const float playerTopY = m_position.y - 10.0f; // Un peu au-dessus du joueur
 
-        // Animation de battement d'ailes (simple oscillation)
+        // Animation de vol réaliste (mouvement en forme de 8 allongé)
         static float fireflyTimer = 0.0f;
-        fireflyTimer += 0.1f;
-        float offsetY = std::sin(fireflyTimer) * 3.0f;
+        fireflyTimer += 0.08f; // Vitesse d'animation
 
-        // Luciole gauche (première saut disponible)
+        // Mouvement vertical et horizontal pour un vol naturel
+        float offsetY = std::sin(fireflyTimer) * 5.0f;
+        float offsetX = std::cos(fireflyTimer * 0.7f) * 3.0f; // Fréquence différente pour effet de lemniscate
+
+        // Luciole gauche (premier saut disponible)
         if (m_jumpsRemaining >= 1) {
+            float firefly1X = playerCenterX - 15.0f + offsetX;
+            float firefly1Y = playerTopY + offsetY;
+
             sf::CircleShape firefly1(4.0f);
-            firefly1.setPosition(sf::Vector2f(playerCenterX - 15.0f, playerTopY + offsetY));
+            firefly1.setPosition(sf::Vector2f(firefly1X, firefly1Y));
             firefly1.setFillColor(sf::Color(255, 255, 200, 200));
             firefly1.setOrigin(sf::Vector2f(4.0f, 4.0f));
 
             // Lueur autour de la luciole
             sf::CircleShape glow1(8.0f);
-            glow1.setPosition(sf::Vector2f(playerCenterX - 15.0f, playerTopY + offsetY));
+            glow1.setPosition(sf::Vector2f(firefly1X, firefly1Y));
             glow1.setFillColor(sf::Color(255, 255, 100, 80));
             glow1.setOrigin(sf::Vector2f(8.0f, 8.0f));
 
@@ -261,14 +267,21 @@ void Player::render(sf::RenderWindow& window) {
 
         // Luciole droite (deuxième saut disponible)
         if (m_jumpsRemaining >= 2) {
+            // Mouvement déphasé pour un effet naturel (les deux lucioles ne volent pas de la même façon)
+            float offsetY2 = std::sin(fireflyTimer + 1.5f) * 5.0f; // Déphasage de ~90°
+            float offsetX2 = std::cos(fireflyTimer * 0.7f + 1.5f) * 3.0f;
+
+            float firefly2X = playerCenterX + 15.0f + offsetX2;
+            float firefly2Y = playerTopY + offsetY2;
+
             sf::CircleShape firefly2(4.0f);
-            firefly2.setPosition(sf::Vector2f(playerCenterX + 15.0f, playerTopY - offsetY)); // Décalage opposé pour effet
+            firefly2.setPosition(sf::Vector2f(firefly2X, firefly2Y));
             firefly2.setFillColor(sf::Color(255, 255, 200, 200));
             firefly2.setOrigin(sf::Vector2f(4.0f, 4.0f));
 
             // Lueur autour de la luciole
             sf::CircleShape glow2(8.0f);
-            glow2.setPosition(sf::Vector2f(playerCenterX + 15.0f, playerTopY - offsetY));
+            glow2.setPosition(sf::Vector2f(firefly2X, firefly2Y));
             glow2.setFillColor(sf::Color(255, 255, 100, 80));
             glow2.setOrigin(sf::Vector2f(8.0f, 8.0f));
 
