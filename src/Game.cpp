@@ -123,6 +123,66 @@ void Game::processEvents() {
                 return;
             }
 
+            // Cheat code: Ctrl+L pour changer de niveau (développement)
+            if (keyPressed->code == sf::Keyboard::Key::L &&
+                (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) ||
+                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl))) {
+
+                std::cout << "\n=== LEVEL SELECT (DEV MODE) ===" << std::endl;
+                std::cout << "Enter level number (0=prologue, 1-10=levels): ";
+
+                int targetLevel;
+                std::cin >> targetLevel;
+
+                if (targetLevel == 0) {
+                    // Charger le prologue
+                    std::cout << "Loading prologue..." << std::endl;
+                    restartGame();
+                } else if (targetLevel > 0 && targetLevel <= 10) {
+                    // Vérifier si le niveau existe
+                    if (Level::isLevelValid(targetLevel)) {
+                        std::string filename = "levels/level_" + std::to_string(targetLevel) + ".json";
+                        std::cout << "Loading " << filename << "..." << std::endl;
+
+                        if (m_level->loadFromFile(filename)) {
+                            m_currentLevelNumber = targetLevel;
+                            m_isFinished = false;
+                            m_isGameOver = false;
+                            m_isGameComplete = false;
+
+                            // Activer le double saut si niveau >= 4
+                            if (targetLevel >= 4) {
+                                m_player->unlockDoubleJump();
+                                std::cout << "Double jump enabled!" << std::endl;
+                            }
+
+                            // Réinitialiser la vie
+                            m_player->resetHealth();
+                            m_player->resetDisintegration();
+
+                            // Positionner le joueur au portail d'entrée
+                            if (m_level->hasEntrancePortal()) {
+                                sf::Vector2f portalPos = m_level->getEntrancePortalPosition();
+                                sf::Vector2f playerStartPos;
+                                playerStartPos.x = portalPos.x + 32.0f - 51.0f;
+                                playerStartPos.y = portalPos.y + 32.0f - 51.0f;
+                                m_player->setPosition(playerStartPos);
+                                m_player->setVelocity(sf::Vector2f(0.0f, 0.0f));
+                                m_camera->setPosition(playerStartPos);
+                                std::cout << "Level " << targetLevel << " loaded successfully!" << std::endl;
+                            }
+                        } else {
+                            std::cout << "ERROR: Failed to load level " << targetLevel << std::endl;
+                        }
+                    } else {
+                        std::cout << "Level " << targetLevel << " does not exist!" << std::endl;
+                    }
+                } else {
+                    std::cout << "Invalid level number!" << std::endl;
+                }
+                std::cout << "================================\n" << std::endl;
+            }
+
             // Gestion du menu pause avec Escape
             if (keyPressed->code == sf::Keyboard::Key::Escape) {
                 if (m_isEditorMode) {
