@@ -449,6 +449,38 @@ void Game::render() {
         m_window.draw(titleText);
     }
 
+    // Afficher "NOUVEAU POUVOIR" si on est au niveau 4
+    if (m_currentLevelNumber == 4 && !m_isFinished && !m_isGameComplete) {
+        // Titre "NOUVEAU POUVOIR" en jaune (2 fois plus petit que le titre principal)
+        sf::Text powerText(m_font, "NOUVEAU POUVOIR", 70);
+        powerText.setFillColor(sf::Color(255, 215, 0)); // Jaune doré
+        powerText.setOutlineColor(sf::Color::White);
+        powerText.setOutlineThickness(3.0f);
+        powerText.setStyle(sf::Text::Bold);
+
+        sf::FloatRect powerBounds = powerText.getLocalBounds();
+        powerText.setOrigin(sf::Vector2f(powerBounds.position.x + powerBounds.size.x / 2.0f,
+                                          powerBounds.position.y + powerBounds.size.y / 2.0f));
+        powerText.setPosition(sf::Vector2f(640.0f, 120.0f)); // En haut au centre
+
+        // Halo lumineux rectangulaire
+        float textWidth = powerBounds.size.x;
+        float textHeight = powerBounds.size.y;
+
+        // Dessiner plusieurs rectangles avec opacité décroissante pour l'effet de lueur
+        for (int i = 4; i >= 1; --i) {
+            sf::RectangleShape glow(sf::Vector2f(textWidth + i * 15.0f, textHeight + i * 10.0f));
+            glow.setOrigin(sf::Vector2f((textWidth + i * 15.0f) / 2.0f, (textHeight + i * 10.0f) / 2.0f));
+            glow.setPosition(sf::Vector2f(640.0f, 120.0f));
+            int alpha = 20 - i * 3; // Opacité décroissante
+            glow.setFillColor(sf::Color(255, 215, 0, alpha)); // Jaune doré avec transparence
+            m_window.draw(glow);
+        }
+
+        // Dessiner le texte par-dessus le halo
+        m_window.draw(powerText);
+    }
+
     // Afficher le message de victoire si le niveau est terminé
     if (m_isFinished && !m_isGameComplete) {
         showVictoryMessage();
