@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 
-Player::Player()
+Player::Player(CharacterType characterType)
     : m_position(0.0f, 0.0f)
     , m_velocity(0.0f, 0.0f)
     , m_state(State::Idle)
@@ -12,6 +12,9 @@ Player::Player()
     , m_isRunning(false)
     , m_isGrounded(false)
     , m_facingRight(true)
+    , m_characterType(characterType)
+    , m_spriteScale(0.2f)  // Valeur par défaut pour le Magicien
+    , m_animationSpeed(1.0f)  // Valeur par défaut
     , m_currentFrame(0)
     , m_frameTimer(0.0f)
     , m_health(5)
@@ -20,20 +23,51 @@ Player::Player()
     , m_hasDoubleJump(false)
     , m_jumpsRemaining(1)
 {
-    // Charger toutes les animations
-    std::cout << "Chargement des animations du Blue Wizard..." << std::endl;
+    // Charger les animations selon le personnage
+    if (m_characterType == CharacterType::Wizard) {
+        std::cout << "Chargement des animations du Blue Wizard..." << std::endl;
+        m_spriteScale = 0.2f;
+        m_animationSpeed = 1.0f;  // Vitesse normale
+        loadAnimationFrames("assets/tiles/BlueWizard/2BlueWizardIdle", "Chara - BlueIdle", 20, m_idleTextures);
+        loadAnimationFrames("assets/tiles/BlueWizard/2BlueWizardWalk", "Chara_BlueWalk", 20, m_walkTextures);
+        loadAnimationFrames("assets/tiles/BlueWizard/2BlueWizardJump", "CharaWizardJump_", 8, m_jumpTextures);
 
-    loadAnimationFrames("assets/tiles/BlueWizard/2BlueWizardIdle", "Chara - BlueIdle", 20, m_idleTextures);
-    loadAnimationFrames("assets/tiles/BlueWizard/2BlueWizardWalk", "Chara_BlueWalk", 20, m_walkTextures);
-    loadAnimationFrames("assets/tiles/BlueWizard/2BlueWizardJump", "CharaWizardJump_", 8, m_jumpTextures);
+        // Créer le sprite avec la première frame de l'animation idle
+        if (!m_idleTextures.empty()) {
+            m_sprite = std::make_unique<sf::Sprite>(*m_idleTextures[0]);
+            m_sprite->setScale(sf::Vector2f(m_spriteScale, m_spriteScale));
+            std::cout << "✓ Animations chargées avec succès!" << std::endl;
+        } else {
+            std::cerr << "✗ Échec du chargement des animations!" << std::endl;
+        }
+    } else if (m_characterType == CharacterType::Goat) {
+        std::cout << "Chargement des animations de la Chèvre..." << std::endl;
+        m_spriteScale = 0.363f;  // Agrandi de 10% supplémentaire (0.33 * 1.1 = 0.363)
+        m_animationSpeed = 2.0f;  // Animation deux fois plus lente
 
-    // Créer le sprite avec la première frame de l'animation idle
-    if (!m_idleTextures.empty()) {
-        m_sprite = std::make_unique<sf::Sprite>(*m_idleTextures[0]);
-        m_sprite->setScale(sf::Vector2f(0.2f, 0.2f));
-        std::cout << "✓ Animations chargées avec succès!" << std::endl;
-    } else {
-        std::cerr << "✗ Échec du chargement des animations!" << std::endl;
+        // Idle: chevre-statique-droite (1 frame statique depuis le dossier static)
+        auto idleTexture = std::make_shared<sf::Texture>();
+        if (idleTexture->loadFromFile("assets/tiles/Chevre/static/chevre-statique-droite-00.png")) {
+            m_idleTextures.push_back(idleTexture);
+        }
+
+        // Walk: chevre-course (7 frames: 00 à 06 depuis le dossier principal)
+        loadAnimationFrames("assets/tiles/Chevre", "chevre-course-", 7, m_walkTextures);
+
+        // Jump: chevre-saute (1 frame: 01 depuis le dossier principal)
+        auto jumpTexture = std::make_shared<sf::Texture>();
+        if (jumpTexture->loadFromFile("assets/tiles/Chevre/chevre-saute-01.png")) {
+            m_jumpTextures.push_back(jumpTexture);
+        }
+
+        // Créer le sprite avec la première frame de l'animation idle
+        if (!m_idleTextures.empty()) {
+            m_sprite = std::make_unique<sf::Sprite>(*m_idleTextures[0]);
+            m_sprite->setScale(sf::Vector2f(m_spriteScale, m_spriteScale));
+            std::cout << "✓ Chèvre chargée avec succès!" << std::endl;
+        } else {
+            std::cerr << "✗ Échec du chargement de la chèvre!" << std::endl;
+        }
     }
 
     // Charger le son de saut
@@ -50,8 +84,15 @@ void Player::loadAnimationFrames(const std::string& directory, const std::string
     for (int i = 0; i < frameCount; ++i) {
         auto texture = std::make_shared<sf::Texture>();
 
-        // Format: "Chara - BlueIdle00000.png", "Chara - BlueIdle00001.png", etc.
-        std::string filename = directory + "/" + prefix + std::string(5 - std::to_string(i).length(), '0') + std::to_string(i) + ".png";
+        // Déterminer le format de numérotation (2 ou 5 chiffres)
+        std::string filename;
+        if (prefix.find("Blue") != std::string::npos) {
+            // Format Wizard: "Chara - BlueIdle00000.png" (5 chiffres)
+            filename = directory + "/" + prefix + std::string(5 - std::to_string(i).length(), '0') + std::to_string(i) + ".png";
+        } else {
+            // Format Goat: "chevre-course-00.png" (2 chiffres)
+            filename = directory + "/" + prefix + std::string(2 - std::to_string(i).length(), '0') + std::to_string(i) + ".png";
+        }
 
         if (texture->loadFromFile(filename)) {
             textures.push_back(texture);
@@ -61,6 +102,46 @@ void Player::loadAnimationFrames(const std::string& directory, const std::string
     }
 
     std::cout << "  - " << textures.size() << " frames chargées depuis " << directory << std::endl;
+}
+
+void Player::loadSpriteSheet(const std::string& filepath, int frameWidth, int frameHeight, int totalFrames, std::vector<std::shared_ptr<sf::Texture>>& textures) {
+    // Charger l'image complète
+    sf::Image spriteSheet;
+    if (!spriteSheet.loadFromFile(filepath)) {
+        std::cerr << "✗ Échec du chargement du sprite sheet: " << filepath << std::endl;
+        return;
+    }
+
+    int sheetWidth = spriteSheet.getSize().x;
+    int sheetHeight = spriteSheet.getSize().y;
+    int columns = sheetWidth / frameWidth;
+    int rows = sheetHeight / frameHeight;
+
+    std::cout << "  Loading sprite sheet: " << filepath << std::endl;
+    std::cout << "    Sheet size: " << sheetWidth << "x" << sheetHeight << std::endl;
+    std::cout << "    Frame size: " << frameWidth << "x" << frameHeight << std::endl;
+    std::cout << "    Grid: " << columns << "x" << rows << " (max " << columns * rows << " frames)" << std::endl;
+
+    // Extraire chaque frame
+    int framesLoaded = 0;
+    for (int i = 0; i < totalFrames && framesLoaded < columns * rows; ++i) {
+        int row = i / columns;
+        int col = i % columns;
+
+        // Créer une texture pour cette frame
+        auto texture = std::make_shared<sf::Texture>();
+
+        // Charger juste la région de cette frame depuis le sprite sheet
+        sf::IntRect area(sf::Vector2i(col * frameWidth, row * frameHeight), sf::Vector2i(frameWidth, frameHeight));
+        if (texture->loadFromImage(spriteSheet, false, area)) {
+            textures.push_back(texture);
+            framesLoaded++;
+        } else {
+            std::cerr << "    ✗ Échec de l'extraction de la frame " << i << std::endl;
+        }
+    }
+
+    std::cout << "    ✓ " << framesLoaded << " frames extraites" << std::endl;
 }
 
 void Player::handleInput(sf::Keyboard::Key key, bool isPressed) {
@@ -123,13 +204,19 @@ void Player::updatePhysics(sf::Time deltaTime) {
     if (m_isMovingLeft && !m_isMovingRight) {
         float speed = m_isRunning ? RUN_SPEED : WALK_SPEED;
         m_velocity.x = -speed;
-        m_state = m_isRunning ? State::Running : State::Walking;
+        // Ne changer l'état que si on est au sol
+        if (m_isGrounded) {
+            m_state = m_isRunning ? State::Running : State::Walking;
+        }
         m_facingRight = false; // Regarder à gauche
     }
     else if (m_isMovingRight && !m_isMovingLeft) {
         float speed = m_isRunning ? RUN_SPEED : WALK_SPEED;
         m_velocity.x = speed;
-        m_state = m_isRunning ? State::Running : State::Walking;
+        // Ne changer l'état que si on est au sol
+        if (m_isGrounded) {
+            m_state = m_isRunning ? State::Running : State::Walking;
+        }
         m_facingRight = true; // Regarder à droite
     }
     else {
@@ -196,9 +283,10 @@ void Player::updateAnimation(sf::Time deltaTime) {
         // Incrémenter le timer
         m_frameTimer += deltaTime.asSeconds();
 
-        // Changer de frame si nécessaire
-        if (m_frameTimer >= FRAME_TIME) {
-            m_frameTimer -= FRAME_TIME;
+        // Changer de frame si nécessaire (utiliser m_animationSpeed pour ralentir ou accélérer)
+        float effectiveFrameTime = FRAME_TIME * m_animationSpeed;
+        if (m_frameTimer >= effectiveFrameTime) {
+            m_frameTimer -= effectiveFrameTime;
             m_currentFrame = (m_currentFrame + 1) % currentAnimation->size();
 
             // Changer la texture du sprite
@@ -217,8 +305,8 @@ void Player::render(sf::RenderWindow& window) {
     if (!m_sprite) return;
 
     // Appliquer le flip horizontal selon la direction
-    float scaleX = m_facingRight ? 0.2f : -0.2f;
-    m_sprite->setScale(sf::Vector2f(scaleX, 0.2f));
+    float scaleX = m_facingRight ? m_spriteScale : -m_spriteScale;
+    m_sprite->setScale(sf::Vector2f(scaleX, m_spriteScale));
 
     // Ajuster l'origine pour que le flip soit correct
     if (!m_facingRight) {

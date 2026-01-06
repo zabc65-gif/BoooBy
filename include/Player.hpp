@@ -4,6 +4,7 @@
 #include <SFML/Audio.hpp>
 #include <memory>
 #include "ParticleSystem.hpp"
+#include "CharacterSelection.hpp"
 
 class Player {
 public:
@@ -16,7 +17,7 @@ public:
         UsingPower
     };
 
-    Player();
+    Player(CharacterType characterType = CharacterType::Wizard);
 
     void handleInput(sf::Keyboard::Key key, bool isPressed);
     void update(sf::Time deltaTime);
@@ -54,6 +55,7 @@ public:
 
     // Double saut
     void unlockDoubleJump() { m_hasDoubleJump = true; }
+    void lockDoubleJump() { m_hasDoubleJump = false; m_jumpsRemaining = 1; }
     bool hasDoubleJump() const { return m_hasDoubleJump; }
     int getJumpsRemaining() const { return m_jumpsRemaining; }
 
@@ -61,6 +63,7 @@ private:
     void updatePhysics(sf::Time deltaTime);
     void updateAnimation(sf::Time deltaTime);
     void loadAnimationFrames(const std::string& directory, const std::string& prefix, int frameCount, std::vector<std::shared_ptr<sf::Texture>>& textures);
+    void loadSpriteSheet(const std::string& filepath, int frameWidth, int frameHeight, int totalFrames, std::vector<std::shared_ptr<sf::Texture>>& textures);
 
 private:
     sf::Vector2f m_position;
@@ -86,6 +89,11 @@ private:
 
     // Animation constants
     static constexpr float FRAME_TIME = 0.05f; // 50ms par frame = 20 FPS
+
+    // Character type
+    CharacterType m_characterType;
+    float m_spriteScale;  // Scale du sprite (varie selon le personnage)
+    float m_animationSpeed;  // Multiplicateur de vitesse d'animation (1.0 = normal, 2.0 = deux fois plus lent)
 
     // Animations
     std::vector<std::shared_ptr<sf::Texture>> m_idleTextures;
