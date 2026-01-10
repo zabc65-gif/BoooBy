@@ -5,17 +5,21 @@ const sf::Time Game::TimePerFrame = sf::seconds(1.f / 60.f);
 
 Game::Game()
     : m_window(sf::VideoMode({1280, 720}), "BoooBee - Sheepy Remake", sf::Style::Close)
-    , m_player(std::make_unique<Player>())
+    , m_characterSelection(std::make_unique<CharacterSelection>())
+    , m_player(nullptr)  // Sera créé après la sélection
     , m_pauseMenu(std::make_unique<PauseMenu>())
     , m_camera(std::make_unique<Camera>(1280.0f, 720.0f))
     , m_level(std::make_unique<Level>())
     , m_editor(std::make_unique<LevelEditor>(64))
+    , m_isSelectingCharacter(true)
     , m_isPaused(false)
     , m_isFinished(false)
     , m_isEditorMode(false)
     , m_isGameComplete(false)
     , m_isGameOver(false)
+    , m_isLevelSelectOpen(false)
     , m_currentLevelNumber(0)  // Commencer au prologue
+    , m_selectedLevelInMenu(0)
 {
     m_window.setFramerateLimit(60);
 
@@ -29,22 +33,7 @@ Game::Game()
         std::cerr << "Failed to load level" << std::endl;
     }
 
-    // Position initiale du joueur au centre du portail d'entrée
-    sf::Vector2f playerStartPos;
-    if (m_level->hasEntrancePortal()) {
-        sf::Vector2f portalPos = m_level->getEntrancePortalPosition();
-        // Centrer le joueur sur le portail (portail = 64x64, joueur = 102x102)
-        playerStartPos.x = portalPos.x + 32.0f - 51.0f;  // Centre du portail - moitié largeur joueur
-        playerStartPos.y = portalPos.y + 32.0f - 51.0f;  // Centre du portail - moitié hauteur joueur
-        std::cout << "Player starting at entrance portal center: (" << playerStartPos.x << ", " << playerStartPos.y << ")" << std::endl;
-    } else {
-        // Position par défaut
-        playerStartPos = sf::Vector2f(150.0f, 550.0f);
-    }
-    m_player->setPosition(playerStartPos);
-
-    // Initialiser la caméra centrée sur le joueur
-    m_camera->setPosition(m_player->getPosition());
+    // Le joueur et la caméra seront initialisés après la sélection de personnage
 
     // Charger et jouer la musique de fond
     if (m_backgroundMusic.openFromFile("assets/music/Melasse des ombres 1.mp3")) {
@@ -74,6 +63,7 @@ void Game::run() {
             timeSinceLastUpdate -= TimePerFrame;
 
             processEvents();
+
             if (!m_isPaused) {
                 update(TimePerFrame);
             }
@@ -89,15 +79,40 @@ void Game::processEvents() {
             m_window.close();
         }
         else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+            // Si on est en train de sélectionner le personnage
+            if (m_isSelectingCharacter) {
+                m_characterSelection->handleInput(keyPressed->code, true);
+
+                // Vérifier si la sélection est terminée
+                if (m_characterSelection->isSelectionMade()) {
+                    m_isSelectingCharacter = false;
+                    CharacterType selectedChar = m_characterSelection->getSelectedCharacter();
+
+                    // Créer le joueur avec le personnage sélectionné
+                    m_player = std::make_unique<Player>(selectedChar);
+
+                    // Positionner le joueur au portail d'entrée
+                    sf::Vector2f playerStartPos;
+                    if (m_level->hasEntrancePortal()) {
+                        sf::Vector2f portalPos = m_level->getEntrancePortalPosition();
+                        playerStartPos.x = portalPos.x + 32.0f - 51.0f;
+                        playerStartPos.y = portalPos.y + 32.0f - 51.0f;
+                    } else {
+                        playerStartPos = sf::Vector2f(150.0f, 550.0f);
+                    }
+                    m_player->setPosition(playerStartPos);
+                    m_camera->setPosition(m_player->getPosition());
+                }
+                continue;  // Ne pas traiter les autres touches pendant la sélection
+            }
+
             // Basculer en mode éditeur avec F1
             if (keyPressed->code == sf::Keyboard::Key::F1) {
                 m_isEditorMode = !m_isEditorMode;
                 m_editor->setActive(m_isEditorMode);
-                std::cout << (m_isEditorMode ? "Editor mode ON" : "Editor mode OFF") << std::endl;
 
                 // Si on sort de l'éditeur, recharger le niveau prologue
                 if (!m_isEditorMode) {
-                    std::cout << "Reloading prologue level..." << std::endl;
                     if (m_level->loadFromFile("levels/prologue.json")) {
                         // Repositionner le joueur au centre du portail d'entrée
                         if (m_level->hasEntrancePortal()) {
@@ -108,7 +123,6 @@ void Game::processEvents() {
                             playerStartPos.y = portalPos.y + 32.0f - 51.0f;  // Centre du portail - moitié hauteur joueur
                             m_player->setPosition(playerStartPos);
                             m_camera->setPosition(playerStartPos);
-                            std::cout << "Player repositioned at entrance portal center" << std::endl;
                         }
                     } else {
                         std::cerr << "Failed to reload prologue level!" << std::endl;
@@ -118,69 +132,18 @@ void Game::processEvents() {
 
             // Vérifier si l'éditeur veut quitter le jeu
             if (m_isEditorMode && m_editor->wantsToQuit()) {
-                std::cout << "Quitting game from editor..." << std::endl;
                 m_window.close();
                 return;
             }
 
-            // Cheat code: Ctrl+L pour changer de niveau (développement)
+            // Cheat code: Ctrl+L pour ouvrir le menu de sélection de niveau (développement)
             if (keyPressed->code == sf::Keyboard::Key::L &&
                 (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) ||
                  sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl))) {
-
-                std::cout << "\n=== LEVEL SELECT (DEV MODE) ===" << std::endl;
-                std::cout << "Enter level number (0=prologue, 1-10=levels): ";
-
-                int targetLevel;
-                std::cin >> targetLevel;
-
-                if (targetLevel == 0) {
-                    // Charger le prologue
-                    std::cout << "Loading prologue..." << std::endl;
-                    restartGame();
-                } else if (targetLevel > 0 && targetLevel <= 10) {
-                    // Vérifier si le niveau existe
-                    if (Level::isLevelValid(targetLevel)) {
-                        std::string filename = "levels/level_" + std::to_string(targetLevel) + ".json";
-                        std::cout << "Loading " << filename << "..." << std::endl;
-
-                        if (m_level->loadFromFile(filename)) {
-                            m_currentLevelNumber = targetLevel;
-                            m_isFinished = false;
-                            m_isGameOver = false;
-                            m_isGameComplete = false;
-
-                            // Activer le double saut si niveau >= 4
-                            if (targetLevel >= 4) {
-                                m_player->unlockDoubleJump();
-                                std::cout << "Double jump enabled!" << std::endl;
-                            }
-
-                            // Réinitialiser la vie
-                            m_player->resetHealth();
-                            m_player->resetDisintegration();
-
-                            // Positionner le joueur au portail d'entrée
-                            if (m_level->hasEntrancePortal()) {
-                                sf::Vector2f portalPos = m_level->getEntrancePortalPosition();
-                                sf::Vector2f playerStartPos;
-                                playerStartPos.x = portalPos.x + 32.0f - 51.0f;
-                                playerStartPos.y = portalPos.y + 32.0f - 51.0f;
-                                m_player->setPosition(playerStartPos);
-                                m_player->setVelocity(sf::Vector2f(0.0f, 0.0f));
-                                m_camera->setPosition(playerStartPos);
-                                std::cout << "Level " << targetLevel << " loaded successfully!" << std::endl;
-                            }
-                        } else {
-                            std::cout << "ERROR: Failed to load level " << targetLevel << std::endl;
-                        }
-                    } else {
-                        std::cout << "Level " << targetLevel << " does not exist!" << std::endl;
-                    }
-                } else {
-                    std::cout << "Invalid level number!" << std::endl;
+                m_isLevelSelectOpen = !m_isLevelSelectOpen;
+                if (m_isLevelSelectOpen) {
+                    m_selectedLevelInMenu = m_currentLevelNumber;
                 }
-                std::cout << "================================\n" << std::endl;
             }
 
             // Gestion du menu pause avec Escape
@@ -190,24 +153,29 @@ void Game::processEvents() {
                     m_editor->setPaused(!m_editor->isPaused());
                     if (m_editor->isPaused()) {
                         m_pauseMenu->resetAction();
-                        std::cout << "Editor paused" << std::endl;
-                    } else {
-                        std::cout << "Editor resumed" << std::endl;
                     }
                 } else {
                     // En mode jeu normal
                     m_isPaused = !m_isPaused;
                     if (m_isPaused) {
                         m_pauseMenu->resetAction();
-                        std::cout << "Game paused" << std::endl;
-                    } else {
-                        std::cout << "Game resumed" << std::endl;
                     }
                 }
             }
 
+            // Si le menu de sélection de niveau est ouvert
+            if (m_isLevelSelectOpen) {
+                if (keyPressed->code == sf::Keyboard::Key::Left || keyPressed->code == sf::Keyboard::Key::Q) {
+                    m_selectedLevelInMenu = (m_selectedLevelInMenu - 1 + 11) % 11; // 0-10
+                } else if (keyPressed->code == sf::Keyboard::Key::Right || keyPressed->code == sf::Keyboard::Key::D) {
+                    m_selectedLevelInMenu = (m_selectedLevelInMenu + 1) % 11; // 0-10
+                } else if (keyPressed->code == sf::Keyboard::Key::Enter || keyPressed->code == sf::Keyboard::Key::Space) {
+                    loadLevel(m_selectedLevelInMenu);
+                    m_isLevelSelectOpen = false;
+                }
+            }
             // Si le jeu est terminé (game over), gérer le menu de game over
-            if (m_isGameOver) {
+            else if (m_isGameOver) {
                 handleMenuInput(keyPressed->code);
             }
             // Si le jeu est complété, gérer le menu de victoire finale
@@ -232,7 +200,8 @@ void Game::processEvents() {
             }
         }
         else if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {
-            if (!m_isPaused && !m_isEditorMode) {
+            // Ne traiter les événements KeyReleased que si le joueur existe et n'est pas en sélection
+            if (!m_isSelectingCharacter && !m_isPaused && !m_isEditorMode && m_player) {
                 handlePlayerInput(keyReleased->code, false);
             }
         }
@@ -282,6 +251,9 @@ void Game::processEvents() {
 }
 
 void Game::update(sf::Time deltaTime) {
+    // Si on est en train de sélectionner le personnage, ne rien mettre à jour
+    if (m_isSelectingCharacter || !m_player) return;
+
     // En mode éditeur, mettre à jour l'éditeur
     if (m_isEditorMode) {
         m_editor->update(deltaTime);
@@ -326,18 +298,27 @@ void Game::update(sf::Time deltaTime) {
     const float levelHeight = m_level->getHeight() * m_level->getTileSize();
     const float fallThreshold = levelHeight + 200.0f; // 200 pixels de marge
 
-    // Gérer la désintégration et les chutes
+    // Gérer la désintégration et les chutes/morts
     static sf::Clock disintegrationClock;
     static bool disintegrationStarted = false;
     static sf::Vector2f respawnPosition;
     static bool isDeath = false; // true si c'est une mort (0 HP), false si c'est juste une chute
 
+    // Vérifier si le joueur est mort (par les ennemis) - sans tomber
+    if (m_player->isDead() && !m_player->isDisintegrating() && !disintegrationStarted) {
+        std::cout << "Player killed by enemy! Triggering death..." << std::endl;
+        m_player->triggerDisintegration();
+        disintegrationClock.restart();
+        disintegrationStarted = true;
+        isDeath = true;
+    }
+
     if (m_player->getPosition().y > fallThreshold && !m_player->isDisintegrating()) {
         // Le joueur est tombé hors du niveau
         std::cout << "Player fell out of bounds! Triggering disintegration..." << std::endl;
 
-        // Perdre 1 point de vie (1/5 de la vie totale)
-        m_player->takeDamage(1);
+        // Perdre 20% de vie par chute
+        m_player->takeDamage(20);
 
         // Déclencher la désintégration
         m_player->triggerDisintegration();
@@ -389,11 +370,21 @@ void Game::update(sf::Time deltaTime) {
     }
 
     // Mettre à jour la caméra pour suivre le joueur
-    m_camera->update(m_player->getPosition(), deltaTime);
+    // Détecter si le joueur se déplace (vitesse horizontale > seuil)
+    sf::Vector2f velocity = m_player->getVelocity();
+    bool playerIsMoving = std::abs(velocity.x) > 10.0f;  // Seuil de 10 pixels/s
+    m_camera->update(m_player->getPosition(), deltaTime, playerIsMoving);
 }
 
 void Game::render() {
     m_window.clear(sf::Color::Black); // Noir pour mieux voir les tiles
+
+    // Si on est en train de sélectionner le personnage
+    if (m_isSelectingCharacter) {
+        m_characterSelection->render(m_window);
+        m_window.display();
+        return;
+    }
 
     // Si en mode éditeur, dessiner l'éditeur
     if (m_isEditorMode) {
@@ -411,14 +402,6 @@ void Game::render() {
 
     // Appliquer la vue de la caméra pour les éléments du monde
     m_window.setView(m_camera->getView());
-
-    // DEBUG: Afficher la position de la caméra
-    static int frameCount = 0;
-    if (frameCount % 60 == 0) {
-        auto camCenter = m_camera->getView().getCenter();
-        std::cout << "Camera center: (" << camCenter.x << ", " << camCenter.y << ")" << std::endl;
-    }
-    frameCount++;
 
     // Dessiner le niveau
     m_level->render(m_window);
@@ -509,8 +492,8 @@ void Game::render() {
         m_window.draw(titleText);
     }
 
-    // Afficher "NOUVEAU POUVOIR" si on est au niveau 4
-    if (m_currentLevelNumber == 4 && !m_isFinished && !m_isGameComplete) {
+    // Afficher "NOUVEAU POUVOIR" si on est au niveau 4 ou 8
+    if ((m_currentLevelNumber == 4 || m_currentLevelNumber == 8) && !m_isFinished && !m_isGameComplete) {
         // Titre "NOUVEAU POUVOIR" en jaune (2 fois plus petit que le titre principal)
         sf::Text powerText(m_font, "NOUVEAU POUVOIR", 70);
         powerText.setFillColor(sf::Color(255, 215, 0)); // Jaune doré
@@ -539,6 +522,19 @@ void Game::render() {
 
         // Dessiner le texte par-dessus le halo
         m_window.draw(powerText);
+
+        // Sous-titre indiquant le pouvoir spécifique
+        std::string powerName = (m_currentLevelNumber == 4) ? "Double Saut (Espace)" : "Charge du Heros (Shift Droit)";
+        sf::Text subText(m_font, powerName, 30);
+        subText.setFillColor(sf::Color(255, 255, 200));
+        subText.setOutlineColor(sf::Color(100, 80, 0));
+        subText.setOutlineThickness(2.0f);
+
+        sf::FloatRect subBounds = subText.getLocalBounds();
+        subText.setOrigin(sf::Vector2f(subBounds.position.x + subBounds.size.x / 2.0f,
+                                        subBounds.position.y + subBounds.size.y / 2.0f));
+        subText.setPosition(sf::Vector2f(640.0f, 170.0f));
+        m_window.draw(subText);
     }
 
     // Afficher le message de victoire si le niveau est terminé
@@ -559,6 +555,11 @@ void Game::render() {
     // Dessiner le menu pause si le jeu est en pause (au-dessus de tout)
     if (m_isPaused) {
         m_pauseMenu->render(m_window);
+    }
+
+    // Afficher le menu de sélection de niveau (cheat code)
+    if (m_isLevelSelectOpen) {
+        showLevelSelectMenu();
     }
 
     m_window.display();
@@ -594,11 +595,9 @@ void Game::handleMenuInput(sf::Keyboard::Key key) {
     // Si le joueur est mort (game over), gérer les inputs du menu de game over
     if (m_isGameOver) {
         if (key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space) {
-            std::cout << "Restarting from game over (Enter pressed)..." << std::endl;
             m_isGameOver = false;
             restartGame();
         } else if (key == sf::Keyboard::Key::Escape) {
-            std::cout << "Quitting from game over (Escape pressed)..." << std::endl;
             m_window.close();
         }
     }
@@ -634,10 +633,19 @@ void Game::loadNextLevel() {
             m_currentLevelNumber = nextLevel;
             m_isFinished = false;
 
+            // Générer les ennemis pour ce niveau (à partir du niveau 5)
+            m_level->generateEnemies(nextLevel);
+
             // Niveau 4 : activer le double saut
             if (nextLevel == 4) {
                 m_player->unlockDoubleJump();
                 std::cout << "*** LEVEL 4: Double Jump unlocked! ***" << std::endl;
+            }
+
+            // Niveau 8 : activer la charge du héros
+            if (nextLevel == 8) {
+                m_player->unlockHeroCharge();
+                std::cout << "*** LEVEL 8: Hero Charge unlocked! ***" << std::endl;
             }
 
             // Repositionner le joueur au centre du portail d'entrée
@@ -677,9 +685,13 @@ void Game::restartGame() {
     // Réinitialiser la vie et l'état du joueur
     m_player->resetHealth();
     m_player->resetDisintegration();
+    m_player->lockDoubleJump();  // Retour au prologue = pas de pouvoirs
 
     // Charger le niveau prologue
     if (m_level->loadFromFile("levels/prologue.json")) {
+        // Générer les ennemis pour le prologue (aucun car niveau 0)
+        m_level->generateEnemies(0);
+
         if (m_level->hasEntrancePortal()) {
             sf::Vector2f portalPos = m_level->getEntrancePortalPosition();
             // Centrer le joueur sur le portail (portail = 64x64, joueur = 102x102)
@@ -804,4 +816,140 @@ void Game::showGameOverMenu() {
     quitText.setFillColor(sf::Color::White);
     quitText.setPosition(sf::Vector2f(545.0f, 555.0f));
     m_window.draw(quitText);
+}
+
+void Game::showLevelSelectMenu() {
+    // Fond semi-transparent
+    sf::RectangleShape overlay(sf::Vector2f(1280.0f, 720.0f));
+    overlay.setFillColor(sf::Color(0, 0, 0, 200));
+    m_window.draw(overlay);
+
+    // Titre
+    sf::Text title(m_font, "SELECTION DE NIVEAU (DEV)", 48);
+    title.setFillColor(sf::Color(255, 215, 0));
+    title.setOutlineColor(sf::Color::White);
+    title.setOutlineThickness(2.0f);
+    title.setStyle(sf::Text::Bold);
+    sf::FloatRect titleBounds = title.getLocalBounds();
+    title.setPosition(sf::Vector2f(640.0f - (titleBounds.position.x + titleBounds.size.x) / 2.0f, 80.0f));
+    m_window.draw(title);
+
+    // Instructions
+    sf::Text instructions(m_font, "<- -> : Naviguer | ENTREE : Charger | CTRL+L : Fermer", 20);
+    instructions.setFillColor(sf::Color::White);
+    sf::FloatRect instrBounds = instructions.getLocalBounds();
+    instructions.setPosition(sf::Vector2f(640.0f - (instrBounds.position.x + instrBounds.size.x) / 2.0f, 640.0f));
+    m_window.draw(instructions);
+
+    // Grille de niveaux (3 lignes x 4 colonnes = 12 slots pour 0-10)
+    const int cols = 4;
+    const int rows = 3;
+    const float buttonWidth = 150.0f;
+    const float buttonHeight = 80.0f;
+    const float spacing = 30.0f;
+    const float startX = 640.0f - (cols * buttonWidth + (cols - 1) * spacing) / 2.0f;
+    const float startY = 200.0f;
+
+    for (int level = 0; level <= 10; ++level) {
+        int row = level / cols;
+        int col = level % cols;
+
+        float x = startX + col * (buttonWidth + spacing);
+        float y = startY + row * (buttonHeight + spacing);
+
+        // Bouton
+        sf::RectangleShape button(sf::Vector2f(buttonWidth, buttonHeight));
+        button.setPosition(sf::Vector2f(x, y));
+
+        // Couleur différente pour le niveau sélectionné
+        if (level == m_selectedLevelInMenu) {
+            button.setFillColor(sf::Color(255, 215, 0, 200));
+            button.setOutlineColor(sf::Color::White);
+            button.setOutlineThickness(4.0f);
+        } else {
+            button.setFillColor(sf::Color(70, 70, 100, 200));
+            button.setOutlineColor(sf::Color(150, 150, 150));
+            button.setOutlineThickness(2.0f);
+        }
+        m_window.draw(button);
+
+        // Texte du niveau
+        std::string levelText = (level == 0) ? "PROLOGUE" : "NIVEAU " + std::to_string(level);
+        sf::Text text(m_font, levelText, 18);
+        text.setFillColor(sf::Color::White);
+        text.setStyle(sf::Text::Bold);
+        sf::FloatRect textBounds = text.getLocalBounds();
+        text.setPosition(sf::Vector2f(x + buttonWidth / 2.0f - (textBounds.position.x + textBounds.size.x) / 2.0f,
+                                       y + buttonHeight / 2.0f - (textBounds.position.y + textBounds.size.y) / 2.0f - 5.0f));
+        m_window.draw(text);
+
+        // Indicateur du niveau actuel
+        if (level == m_currentLevelNumber) {
+            sf::Text currentIndicator(m_font, "(ACTUEL)", 14);
+            currentIndicator.setFillColor(sf::Color::Green);
+            sf::FloatRect currentBounds = currentIndicator.getLocalBounds();
+            currentIndicator.setPosition(sf::Vector2f(x + buttonWidth / 2.0f - (currentBounds.position.x + currentBounds.size.x) / 2.0f,
+                                                       y + buttonHeight - 25.0f));
+            m_window.draw(currentIndicator);
+        }
+    }
+}
+
+void Game::loadLevel(int levelNumber) {
+    // Validation du niveau
+    if (!Level::isLevelValid(levelNumber)) {
+        std::cout << "Niveau invalide ou inexistant: " << levelNumber << std::endl;
+        return;
+    }
+
+    // Charger le nouveau niveau dans l'objet existant (pour garder le tileset)
+    std::string levelPath = (levelNumber == 0) ? "levels/prologue.json" :
+                            "levels/level_" + std::to_string(levelNumber) + ".json";
+
+    if (!m_level->loadFromFile(levelPath)) {
+        std::cout << "Erreur lors du chargement du niveau: " << levelNumber << std::endl;
+        return;
+    }
+
+    m_currentLevelNumber = levelNumber;
+
+    // Générer les ennemis pour ce niveau (à partir du niveau 5)
+    m_level->generateEnemies(levelNumber);
+
+    // Réinitialiser le joueur
+    m_player->resetHealth();
+    m_player->resetDisintegration();
+
+    // Gérer les pouvoirs en fonction du niveau
+    if (levelNumber >= 4) {
+        m_player->unlockDoubleJump();
+    } else {
+        m_player->lockDoubleJump();
+    }
+
+    if (levelNumber >= 8) {
+        m_player->unlockHeroCharge();
+        std::cout << "*** Hero Charge unlocked! (level " << levelNumber << ") ***" << std::endl;
+    } else {
+        m_player->lockHeroCharge();
+    }
+
+    // Positionner le joueur au centre du portail d'entrée
+    if (m_level->hasEntrancePortal()) {
+        sf::Vector2f portalPos = m_level->getEntrancePortalPosition();
+        // Centrer le joueur sur le portail (portail = 64x64, joueur = 102x102)
+        sf::Vector2f playerStartPos;
+        playerStartPos.x = portalPos.x + 32.0f - 51.0f;  // Centre du portail - moitié largeur joueur
+        playerStartPos.y = portalPos.y + 32.0f - 51.0f;  // Centre du portail - moitié hauteur joueur
+        m_player->setPosition(playerStartPos);
+        m_player->setVelocity(sf::Vector2f(0.0f, 0.0f));
+        m_camera->setPosition(playerStartPos);
+    }
+
+    // Réinitialiser les états du jeu
+    m_isFinished = false;
+    m_isGameOver = false;
+    m_isGameComplete = false;
+
+    std::cout << "Niveau " << levelNumber << " chargé (cheat code)" << std::endl;
 }

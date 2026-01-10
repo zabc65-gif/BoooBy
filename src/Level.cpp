@@ -4,6 +4,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cmath>
+#include <random>
 
 Level::Level()
     : m_tilemap(std::make_unique<Tilemap>(64))  // Chaque tile fait 64x64 pixels à l'écran (256*0.25)
@@ -33,7 +34,12 @@ bool Level::load() {
     }
 
     // Charger le niveau prologue
-    return loadFromFile("levels/prologue.json");
+    bool success = loadFromFile("levels/prologue.json");
+    if (success) {
+        // Générer les ennemis pour le prologue (aucun car niveau 0)
+        generateEnemies(0);
+    }
+    return success;
 }
 
 bool Level::loadFromFile(const std::string& filepath) {
@@ -144,6 +150,34 @@ bool Level::loadFromFile(const std::string& filepath) {
                 std::cout << "Exit portal found at: (" << x << ", " << y << ")" << std::endl;
             }
         }
+        else if (line.find("\"giantEnemy\"") != std::string::npos) {
+            // Parser l'ennemi géant (supporte les deux formats: avec ou sans espace avant {)
+            size_t xPos = line.find("\"x\":");
+            size_t yPos = line.find("\"y\":");
+            size_t scalePos = line.find("\"scale\":");
+            if (xPos != std::string::npos && yPos != std::string::npos) {
+                // Trouver la fin de la valeur x (virgule ou })
+                size_t xEnd = line.find(",", xPos);
+                if (xEnd == std::string::npos) xEnd = line.find("}", xPos);
+                int x = std::stoi(line.substr(xPos + 4, xEnd - xPos - 4));
+
+                // Trouver la fin de la valeur y (virgule ou })
+                size_t yEnd = line.find(",", yPos);
+                if (yEnd == std::string::npos) yEnd = line.find("}", yPos);
+                int y = std::stoi(line.substr(yPos + 4, yEnd - yPos - 4));
+
+                float scale = 1.0f;
+                if (scalePos != std::string::npos) {
+                    size_t scaleEnd = line.find("}", scalePos);
+                    scale = std::stof(line.substr(scalePos + 8, scaleEnd - scalePos - 8));
+                }
+
+                // Ajouter l'ennemi géant
+                sf::Vector2f enemyPos(x * 64.0f + 32.0f, y * 64.0f + 32.0f);
+                addEnemy(enemyPos, scale);
+                std::cout << "Giant enemy found at: (" << x << ", " << y << ") with scale " << scale << std::endl;
+            }
+        }
     }
 
     file.close();
@@ -209,6 +243,34 @@ void Level::createSimpleLevel() {
 
 void Level::update(sf::Time deltaTime, Player& player) {
     handlePlayerCollision(player);
+
+    // Mettre à jour tous les ennemis
+    for (auto& enemy : m_enemies) {
+        if (enemy->isActive()) {
+            enemy->update(deltaTime, player);
+
+            // Vérifier si le joueur charge et touche l'ennemi
+            if (player.isCharging()) {
+                sf::FloatRect chargeBounds = player.getChargeBounds();
+                sf::FloatRect enemyBounds = enemy->getBounds();
+
+                if (chargeBounds.findIntersection(enemyBounds).has_value()) {
+                    // L'ennemi est détruit par la charge!
+                    enemy->setActive(false);
+                    std::cout << "Enemy destroyed by Hero Charge!" << std::endl;
+                    continue;  // Passer à l'ennemi suivant
+                }
+            }
+
+            // Vérifier la collision avec le joueur (seulement si pas en charge ou en préparation)
+            if (!player.isCharging() && !player.isPreparingCharge() && enemy->checkCollision(player) && enemy->canDealDamage()) {
+                // Infliger 10% de dégâts (le joueur a 100 HP max)
+                player.takeDamage(10);
+                enemy->resetDamageCooldown();
+                std::cout << "Player hit by enemy! Health: " << player.getHealth() << "/" << player.getMaxHealth() << std::endl;
+            }
+        }
+    }
 }
 
 void Level::handlePlayerCollision(Player& player) {
@@ -377,25 +439,38 @@ void Level::handlePlayerCollision(Player& player) {
 }
 
 bool Level::isPlayerAtFinish(const Player& player) const {
-    // Vérifier si le joueur est au centre horizontal du portail de sortie (toute hauteur)
+    // Vérifier si le joueur touche le portail de sortie avec une hitbox centrée
     if (!m_hasExitPortal) {
         return false;
     }
 
     sf::Vector2f playerPos = player.getPosition();
     const float playerWidth = 102.0f;
+    const float playerHeight = 102.0f;
 
-    // Calculer le centre horizontal du joueur
+    // Calculer le centre du joueur
     float playerCenterX = playerPos.x + playerWidth / 2.0f;
+    float playerCenterY = playerPos.y + playerHeight / 2.0f;
 
-    // Calculer le centre horizontal du portail de sortie
+    // Calculer le centre du portail de sortie (64x64)
     float portalCenterX = m_exitPortalPosition.x + 32.0f;
+    float portalCenterY = m_exitPortalPosition.y + 32.0f;
 
-    // Calculer la distance horizontale uniquement
+    // Hitbox de collision = quart de la taille du joueur, centrée sur son centre
+    const float hitboxWidth = playerWidth / 4.0f;   // 25.5 pixels
+    const float hitboxHeight = playerHeight / 4.0f; // 25.5 pixels
+
+    // Calculer la distance entre les centres
     float dx = std::abs(playerCenterX - portalCenterX);
+    float dy = std::abs(playerCenterY - portalCenterY);
 
-    // Le joueur doit être très proche du centre horizontal (20 pixels de tolérance)
-    return dx < 20.0f;
+    // Collision AABB: vérifier si les hitbox se chevauchent
+    // Pour qu'il y ait collision, la distance doit être inférieure à la somme des demi-largeurs/hauteurs
+    const float portalHalfWidth = 32.0f;
+    const float portalHalfHeight = 32.0f;
+
+    return (dx < (hitboxWidth / 2.0f + portalHalfWidth)) &&
+           (dy < (hitboxHeight / 2.0f + portalHalfHeight));
 }
 
 bool Level::isLevelValid(int levelNumber) {
@@ -516,4 +591,120 @@ void Level::render(sf::RenderWindow& window) {
         innerCore.setFillColor(sf::Color(255, 255, 255, 200));
         window.draw(innerCore);
     }
+
+    // Dessiner tous les ennemis
+    for (const auto& enemy : m_enemies) {
+        if (enemy->isActive()) {
+            enemy->render(window);
+        }
+    }
+}
+
+void Level::addEnemy(const sf::Vector2f& position, float scale) {
+    m_enemies.push_back(std::make_unique<Enemy>(position, scale));
+}
+
+void Level::generateEnemies(int levelNumber) {
+    // Ne générer des ennemis qu'à partir du niveau 5
+    if (levelNumber < 5) {
+        return;
+    }
+
+    // Niveau 8 est un niveau spécial avec un ennemi géant prédéfini
+    // Ne pas générer d'ennemis aléatoires pour ce niveau
+    if (levelNumber == 8) {
+        std::cout << "Level 8: Skipping random enemy generation (giant enemy is predefined)" << std::endl;
+        return;
+    }
+
+    // Vérifier que la tilemap existe
+    if (!m_tilemap) {
+        std::cerr << "Cannot generate enemies: tilemap is null" << std::endl;
+        return;
+    }
+
+    // Effacer les ennemis existants
+    m_enemies.clear();
+
+    // Calculer le nombre d'ennemis proportionnel à la taille du niveau
+    int width = m_tilemap->getWidth();
+    int height = m_tilemap->getHeight();
+
+    if (width <= 0 || height <= 0) {
+        std::cerr << "Cannot generate enemies: invalid level size" << std::endl;
+        return;
+    }
+
+    int levelArea = width * height;
+
+    // Formule: 1 ennemi pour ~100 tiles, avec un minimum de 2 et maximum de 15
+    int enemyCount = std::max(2, std::min(15, levelArea / 100));
+
+    // Ajuster selon le numéro du niveau (plus difficile = plus d'ennemis)
+    enemyCount += (levelNumber - 5);  // +1 ennemi par niveau après le 5
+    enemyCount = std::min(enemyCount, 20);  // Maximum 20 ennemis
+
+    std::cout << "Generating " << enemyCount << " enemies for level " << levelNumber
+              << " (size: " << width << "x" << height << ")" << std::endl;
+
+    // Générateur de nombres aléatoires
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> xDist(1, width - 2);  // Éviter les bords
+
+    // Collecter toutes les positions de sol valides
+    std::vector<sf::Vector2f> validGroundPositions;
+
+    for (int x = 1; x < width - 1; ++x) {
+        for (int y = 1; y < height - 1; ++y) {
+            // Vérifier si la tuile actuelle est de l'air
+            if (!m_tilemap->isSolid(x, y)) {
+                // Vérifier s'il y a une tuile solide juste en dessous (c'est un sol)
+                if (m_tilemap->isSolid(x, y + 1)) {
+                    // Vérifier qu'on n'est pas trop proche des portails
+                    float posX = x * 64.0f + 32.0f;  // Centre de la tuile
+                    float posY = y * 64.0f + 32.0f;
+
+                    float distToEntrance = std::sqrt(
+                        std::pow(posX - m_entrancePortalPosition.x, 2) +
+                        std::pow(posY - m_entrancePortalPosition.y, 2)
+                    );
+                    float distToExit = std::sqrt(
+                        std::pow(posX - m_exitPortalPosition.x, 2) +
+                        std::pow(posY - m_exitPortalPosition.y, 2)
+                    );
+
+                    // Garder une distance de sécurité de 200 pixels autour des portails
+                    if (distToEntrance > 200.0f && distToExit > 200.0f) {
+                        validGroundPositions.push_back(sf::Vector2f(posX, posY));
+                    }
+                }
+            }
+        }
+    }
+
+    std::cout << "Found " << validGroundPositions.size() << " valid ground positions" << std::endl;
+
+    // Placer les ennemis aléatoirement parmi les positions valides
+    if (!validGroundPositions.empty()) {
+        int actualEnemyCount = std::min(enemyCount, static_cast<int>(validGroundPositions.size()));
+
+        for (int i = 0; i < actualEnemyCount; ++i) {
+            // Recalculer la distribution car la taille du vecteur change
+            std::uniform_int_distribution<size_t> posDist(0, validGroundPositions.size() - 1);
+            size_t index = posDist(gen);
+            sf::Vector2f position = validGroundPositions[index];
+
+            // Retirer cette position pour éviter les doublons
+            validGroundPositions.erase(validGroundPositions.begin() + index);
+
+            // Créer l'ennemi
+            addEnemy(position);
+            std::cout << "  Enemy " << (i + 1) << " placed at (" << position.x << ", " << position.y << ")" << std::endl;
+        }
+    } else {
+        std::cout << "  Warning: No valid ground positions found for enemies" << std::endl;
+    }
+
+    std::cout << "Generated " << m_enemies.size() << " enemies total" << std::endl;
 }

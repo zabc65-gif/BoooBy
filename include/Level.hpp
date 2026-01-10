@@ -3,7 +3,9 @@
 #include <SFML/Graphics.hpp>
 #include "Tilemap.hpp"
 #include "Player.hpp"
+#include "Enemy.hpp"
 #include <memory>
+#include <vector>
 
 class Level {
 public:
@@ -35,6 +37,11 @@ public:
     int getHeight() const { return m_tilemap->getHeight(); }
     int getTileSize() const { return m_tilemap->getTileSize(); }
 
+    // Gestion des ennemis
+    void addEnemy(const sf::Vector2f& position, float scale = 1.0f);
+    const std::vector<std::unique_ptr<Enemy>>& getEnemies() const { return m_enemies; }
+    void generateEnemies(int levelNumber);
+
 private:
     void createSimpleLevel();
 
@@ -58,4 +65,7 @@ private:
 
     // Info du niveau
     bool m_isPrologueLevel;  // true si c'est le niveau prologue
+
+    // Ennemis
+    std::vector<std::unique_ptr<Enemy>> m_enemies;
 };

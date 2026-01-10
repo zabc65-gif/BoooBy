@@ -44,8 +44,10 @@ public:
     int getHealth() const { return m_health; }
     int getMaxHealth() const { return m_maxHealth; }
     void takeDamage(int damage);
-    void resetHealth() { m_health = m_maxHealth; }
+    void resetHealth() { m_health = m_maxHealth; m_invincibilityTimer = 0.0f; }
     bool isDead() const { return m_health <= 0; }
+    bool isInvincible() const { return m_invincibilityTimer > 0.0f; }
+    void updateInvincibility(float deltaTime);
 
     // Désintégration
     void triggerDisintegration();
@@ -58,6 +60,15 @@ public:
     void lockDoubleJump() { m_hasDoubleJump = false; m_jumpsRemaining = 1; }
     bool hasDoubleJump() const { return m_hasDoubleJump; }
     int getJumpsRemaining() const { return m_jumpsRemaining; }
+
+    // Charge du héros
+    void unlockHeroCharge() { m_hasHeroCharge = true; }
+    void lockHeroCharge() { m_hasHeroCharge = false; }
+    bool hasHeroCharge() const { return m_hasHeroCharge; }
+    bool isPreparingCharge() const { return m_isPreparingCharge; }
+    bool isCharging() const { return m_isCharging; }
+    float getChargeProgress() const { return m_chargeTimer / CHARGE_DURATION; }
+    sf::FloatRect getChargeBounds() const;  // Bounds de la zone d'attaque pendant la charge
 
 private:
     void updatePhysics(sf::Time deltaTime);
@@ -111,6 +122,8 @@ private:
     // Vie
     int m_health;
     int m_maxHealth;
+    float m_invincibilityTimer;  // Temps d'invincibilité restant après avoir pris des dégâts
+    static constexpr float INVINCIBILITY_DURATION = 1.0f;  // 1 seconde d'invincibilité
 
     // Désintégration
     ParticleSystem m_particleSystem;
@@ -119,4 +132,49 @@ private:
     // Double saut
     bool m_hasDoubleJump;
     int m_jumpsRemaining;  // 1 = saut simple, 2 = double saut disponible
+
+    // Charge du héros
+    bool m_hasHeroCharge;
+    bool m_isPreparingCharge;  // Phase de préparation (particules qui tournent)
+    bool m_isCharging;         // Phase de charge active (déplacement rapide)
+    float m_chargeTimer;
+    float m_chargeCooldown;
+    float m_prepareTimer;      // Timer pour la phase de préparation
+    sf::Vector2f m_chargeStartPosition;
+    std::vector<sf::Vector2f> m_chargeTrailPositions;  // Traînée de la charge
+
+    // Particules d'explosion lors du déclenchement
+    struct ExplosionParticle {
+        sf::Vector2f position;
+        sf::Vector2f velocity;
+        float life;       // 1.0 = neuve, 0.0 = morte
+        float size;
+        sf::Color color;
+    };
+    std::vector<ExplosionParticle> m_explosionParticles;
+
+    static constexpr float CHARGE_PREPARE_DURATION = 0.5f;  // Durée de préparation
+    static constexpr float CHARGE_DURATION = 0.4f;          // Durée de la charge
+    static constexpr float CHARGE_SPEED = 800.0f;           // Vitesse de la charge
+    static constexpr float CHARGE_COOLDOWN = 1.5f;          // Cooldown entre les charges
+    static constexpr int CHARGE_TRAIL_LENGTH = 30;          // Longueur de la traînée
+
+    // Traînée des lucioles
+    struct FireflyTrailPoint {
+        sf::Vector2f position;
+        float age;  // Age du point (0.0 = nouveau, 1.0 = ancien)
+    };
+    std::vector<FireflyTrailPoint> m_fireflyTrail1;
+    std::vector<FireflyTrailPoint> m_fireflyTrail2;
+    sf::Vector2f m_firefly1Position;  // Position actuelle de la luciole 1
+    sf::Vector2f m_firefly2Position;  // Position actuelle de la luciole 2
+    sf::Vector2f m_fireflyLagPosition;  // Position avec retard (pour l'inertie)
+    float m_fireflyTimer;  // Timer partagé pour l'animation des lucioles
+    float m_fireflyAlpha1;  // Opacité de la luciole 1 (0.0 = invisible, 1.0 = opaque)
+    float m_fireflyAlpha2;  // Opacité de la luciole 2 (0.0 = invisible, 1.0 = opaque)
+    static constexpr int MAX_TRAIL_POINTS = 10;
+    static constexpr float TRAIL_FADE_SPEED = 3.0f;
+    static constexpr float FIREFLY_LAG_SMOOTH_X = 0.06f;  // Facteur de lissage horizontal (plus petit = plus de retard)
+    static constexpr float FIREFLY_LAG_SMOOTH_Y = 0.12f;  // Facteur de lissage vertical
+    static constexpr float FIREFLY_FADE_SPEED = 2.0f;  // Vitesse d'apparition/disparition (unités par seconde)
 };
