@@ -15,6 +15,7 @@ Level::Level()
     , m_hasExitPortal(false)
     , m_doorTextureLoaded(false)
     , m_isPrologueLevel(false)
+    , m_ambientTimer(0.0f)
 {
     // Charger la texture de la porte médiévale (taille moyenne - 1.5x hauteur joueur)
     if (m_doorTexture.loadFromFile("assets/tiles/Medieval_door_medium.png")) {
@@ -196,6 +197,9 @@ bool Level::loadFromFile(const std::string& filepath) {
         sf::Vector2f(64.0f, 64.0f * height)
     );
 
+    // Générer les particules ambiantes pour ce niveau
+    generateAmbientParticles();
+
     std::cout << "Level loaded successfully: " << width << "x" << height << std::endl;
     return true;
 }
@@ -244,26 +248,29 @@ void Level::createSimpleLevel() {
 void Level::update(sf::Time deltaTime, Player& player) {
     handlePlayerCollision(player);
 
+    // Mettre à jour les effets ambiants
+    updateAmbientEffects(deltaTime);
+
     // Mettre à jour tous les ennemis
     for (auto& enemy : m_enemies) {
         if (enemy->isActive()) {
             enemy->update(deltaTime, player);
 
             // Vérifier si le joueur charge et touche l'ennemi
-            if (player.isCharging()) {
+            if (player.isCharging() && !enemy->isDying()) {
                 sf::FloatRect chargeBounds = player.getChargeBounds();
                 sf::FloatRect enemyBounds = enemy->getBounds();
 
                 if (chargeBounds.findIntersection(enemyBounds).has_value()) {
-                    // L'ennemi est détruit par la charge!
-                    enemy->setActive(false);
-                    std::cout << "Enemy destroyed by Hero Charge!" << std::endl;
+                    // Déclencher l'animation de mort spectaculaire!
+                    enemy->triggerDeath();
+                    std::cout << "Enemy hit by Hero Charge! Death animation triggered!" << std::endl;
                     continue;  // Passer à l'ennemi suivant
                 }
             }
 
-            // Vérifier la collision avec le joueur (seulement si pas en charge ou en préparation)
-            if (!player.isCharging() && !player.isPreparingCharge() && enemy->checkCollision(player) && enemy->canDealDamage()) {
+            // Vérifier la collision avec le joueur (seulement si pas en charge, pas en préparation, et pas en train de mourir)
+            if (!player.isCharging() && !player.isPreparingCharge() && !enemy->isDying() && enemy->checkCollision(player) && enemy->canDealDamage()) {
                 // Infliger 10% de dégâts (le joueur a 100 HP max)
                 player.takeDamage(10);
                 enemy->resetDamageCooldown();
@@ -517,6 +524,9 @@ bool Level::isLevelValid(int levelNumber) {
 }
 
 void Level::render(sf::RenderWindow& window) {
+    // Dessiner les effets ambiants d'arrière-plan (derrière les tiles)
+    renderAmbientBackground(window);
+
     // Dessiner la tilemap
     m_tilemap->render(window);
 
@@ -598,6 +608,9 @@ void Level::render(sf::RenderWindow& window) {
             enemy->render(window);
         }
     }
+
+    // Dessiner les effets ambiants de premier plan (devant les tiles et ennemis)
+    renderAmbientForeground(window);
 }
 
 void Level::addEnemy(const sf::Vector2f& position, float scale) {
@@ -637,12 +650,12 @@ void Level::generateEnemies(int levelNumber) {
 
     int levelArea = width * height;
 
-    // Formule: 1 ennemi pour ~100 tiles, avec un minimum de 2 et maximum de 15
-    int enemyCount = std::max(2, std::min(15, levelArea / 100));
+    // Formule: 1 ennemi pour ~200 tiles (divisé par 2), avec un minimum de 1 et maximum de 8
+    int enemyCount = std::max(1, std::min(8, levelArea / 200));
 
     // Ajuster selon le numéro du niveau (plus difficile = plus d'ennemis)
-    enemyCount += (levelNumber - 5);  // +1 ennemi par niveau après le 5
-    enemyCount = std::min(enemyCount, 20);  // Maximum 20 ennemis
+    enemyCount += (levelNumber - 5) / 2;  // +1 ennemi tous les 2 niveaux après le 5
+    enemyCount = std::min(enemyCount, 10);  // Maximum 10 ennemis
 
     std::cout << "Generating " << enemyCount << " enemies for level " << levelNumber
               << " (size: " << width << "x" << height << ")" << std::endl;
@@ -707,4 +720,205 @@ void Level::generateEnemies(int levelNumber) {
     }
 
     std::cout << "Generated " << m_enemies.size() << " enemies total" << std::endl;
+}
+
+void Level::generateAmbientParticles() {
+    // Effacer les particules existantes
+    m_ambientParticles.clear();
+    m_lightRays.clear();
+
+    if (!m_tilemap) return;
+
+    int width = m_tilemap->getWidth();
+    int height = m_tilemap->getHeight();
+    int tileSize = m_tilemap->getTileSize();
+
+    // Générateur de nombres aléatoires
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Calculer le nombre de particules proportionnel à la taille du niveau
+    int levelArea = width * height;
+    int particleCount = std::max(20, std::min(80, levelArea / 15));  // Entre 20 et 80 particules
+
+    std::cout << "Generating " << particleCount << " ambient particles for level (" << width << "x" << height << ")" << std::endl;
+
+    // Distributions pour les particules
+    std::uniform_real_distribution<float> xDist(0.0f, width * tileSize);
+    std::uniform_real_distribution<float> yDist(0.0f, height * tileSize);
+    std::uniform_real_distribution<float> sizeDist(1.5f, 4.0f);
+    std::uniform_real_distribution<float> alphaDist(15.0f, 40.0f);  // Très subtil
+    std::uniform_real_distribution<float> phaseDist(0.0f, 2.0f * 3.14159f);
+    std::uniform_real_distribution<float> speedDist(0.3f, 0.8f);
+    std::uniform_real_distribution<float> ampDist(8.0f, 25.0f);
+    std::uniform_real_distribution<float> driftDist(2.0f, 8.0f);
+    std::uniform_int_distribution<int> colorType(0, 3);
+
+    for (int i = 0; i < particleCount; ++i) {
+        AmbientParticle particle;
+        particle.position = sf::Vector2f(xDist(gen), yDist(gen));
+        particle.basePosition = particle.position;
+        particle.size = sizeDist(gen);
+        particle.alpha = alphaDist(gen);
+        particle.oscillationPhase = phaseDist(gen);
+        particle.oscillationSpeed = speedDist(gen);
+        particle.oscillationAmplitude = ampDist(gen);
+        particle.driftSpeed = driftDist(gen);
+
+        // Couleurs subtiles : blanc/beige légèrement doré (style poussière/pollen)
+        int ct = colorType(gen);
+        if (ct == 0) {
+            particle.color = sf::Color(255, 255, 240);  // Blanc chaud
+        } else if (ct == 1) {
+            particle.color = sf::Color(255, 248, 220);  // Beige clair
+        } else if (ct == 2) {
+            particle.color = sf::Color(245, 245, 220);  // Beige
+        } else {
+            particle.color = sf::Color(255, 250, 205);  // Jaune pâle (pollen)
+        }
+
+        m_ambientParticles.push_back(particle);
+    }
+
+    // Générer quelques rayons de lumière subtils (seulement quelques-uns)
+    int rayCount = std::max(2, std::min(6, levelArea / 100));
+
+    std::uniform_real_distribution<float> rayWidthDist(30.0f, 80.0f);
+    std::uniform_real_distribution<float> rayHeightDist(150.0f, 400.0f);
+    std::uniform_real_distribution<float> rayAlphaDist(8.0f, 18.0f);  // Très très subtil
+    std::uniform_real_distribution<float> rayAngleDist(-15.0f, 15.0f);
+    std::uniform_real_distribution<float> flickerSpeedDist(0.2f, 0.5f);
+
+    for (int i = 0; i < rayCount; ++i) {
+        LightRay ray;
+        ray.position = sf::Vector2f(xDist(gen), yDist(gen) * 0.3f);  // Plutôt vers le haut
+        ray.width = rayWidthDist(gen);
+        ray.height = rayHeightDist(gen);
+        ray.alpha = rayAlphaDist(gen);
+        ray.flickerPhase = phaseDist(gen);
+        ray.flickerSpeed = flickerSpeedDist(gen);
+        ray.angle = rayAngleDist(gen);
+
+        m_lightRays.push_back(ray);
+    }
+
+    std::cout << "Generated " << m_ambientParticles.size() << " particles and " << m_lightRays.size() << " light rays" << std::endl;
+}
+
+void Level::updateAmbientEffects(sf::Time deltaTime) {
+    float dt = deltaTime.asSeconds();
+    m_ambientTimer += dt;
+
+    if (!m_tilemap) return;
+
+    int levelWidth = m_tilemap->getWidth() * m_tilemap->getTileSize();
+    int levelHeight = m_tilemap->getHeight() * m_tilemap->getTileSize();
+
+    // Mettre à jour les particules ambiantes
+    for (auto& particle : m_ambientParticles) {
+        // Mouvement oscillatoire (flottement)
+        particle.oscillationPhase += particle.oscillationSpeed * dt;
+        if (particle.oscillationPhase > 2.0f * 3.14159f) {
+            particle.oscillationPhase -= 2.0f * 3.14159f;
+        }
+
+        // Calculer le décalage oscillatoire
+        float offsetX = std::sin(particle.oscillationPhase) * particle.oscillationAmplitude;
+        float offsetY = std::cos(particle.oscillationPhase * 0.7f) * particle.oscillationAmplitude * 0.5f;
+
+        // Dérive lente vers le haut
+        particle.basePosition.y -= particle.driftSpeed * dt;
+
+        // Wrap around si la particule sort du niveau (réapparaît en bas)
+        if (particle.basePosition.y < -50.0f) {
+            particle.basePosition.y = levelHeight + 50.0f;
+            // Nouvelle position X aléatoire
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_real_distribution<float> xDist(0.0f, static_cast<float>(levelWidth));
+            particle.basePosition.x = xDist(gen);
+        }
+
+        // Position finale
+        particle.position.x = particle.basePosition.x + offsetX;
+        particle.position.y = particle.basePosition.y + offsetY;
+    }
+
+    // Mettre à jour les rayons de lumière (scintillement subtil)
+    for (auto& ray : m_lightRays) {
+        ray.flickerPhase += ray.flickerSpeed * dt;
+        if (ray.flickerPhase > 2.0f * 3.14159f) {
+            ray.flickerPhase -= 2.0f * 3.14159f;
+        }
+    }
+}
+
+void Level::renderAmbientBackground(sf::RenderWindow& window) {
+    // Dessiner les rayons de lumière en arrière-plan
+    for (const auto& ray : m_lightRays) {
+        // Calculer l'alpha avec scintillement
+        float flickerFactor = 0.7f + 0.3f * std::sin(ray.flickerPhase);
+        unsigned char alpha = static_cast<unsigned char>(ray.alpha * flickerFactor);
+
+        // Créer un quad pour le rayon (rectangle avec dégradé simulé)
+        sf::ConvexShape rayShape(4);
+
+        // Calculer les points du rayon (trapèze évasé vers le bas)
+        float halfWidthTop = ray.width * 0.3f;
+        float halfWidthBottom = ray.width;
+        float angleRad = ray.angle * 3.14159f / 180.0f;
+
+        // Points du trapèze
+        sf::Vector2f topLeft(-halfWidthTop, 0.0f);
+        sf::Vector2f topRight(halfWidthTop, 0.0f);
+        sf::Vector2f bottomRight(halfWidthBottom, ray.height);
+        sf::Vector2f bottomLeft(-halfWidthBottom, ray.height);
+
+        // Rotation
+        auto rotate = [angleRad](sf::Vector2f& p) {
+            float cosA = std::cos(angleRad);
+            float sinA = std::sin(angleRad);
+            float newX = p.x * cosA - p.y * sinA;
+            float newY = p.x * sinA + p.y * cosA;
+            p.x = newX;
+            p.y = newY;
+        };
+
+        rotate(topLeft);
+        rotate(topRight);
+        rotate(bottomRight);
+        rotate(bottomLeft);
+
+        rayShape.setPoint(0, ray.position + topLeft);
+        rayShape.setPoint(1, ray.position + topRight);
+        rayShape.setPoint(2, ray.position + bottomRight);
+        rayShape.setPoint(3, ray.position + bottomLeft);
+
+        // Couleur dorée très subtile
+        rayShape.setFillColor(sf::Color(255, 250, 200, alpha));
+        window.draw(rayShape);
+    }
+}
+
+void Level::renderAmbientForeground(sf::RenderWindow& window) {
+    // Dessiner les particules ambiantes au premier plan
+    for (const auto& particle : m_ambientParticles) {
+        // Légère variation d'alpha basée sur le timer global (scintillement)
+        float flicker = 0.8f + 0.2f * std::sin(m_ambientTimer * 2.0f + particle.oscillationPhase);
+        unsigned char alpha = static_cast<unsigned char>(particle.alpha * flicker);
+
+        // Halo externe très subtil
+        sf::CircleShape halo(particle.size * 2.0f);
+        halo.setPosition(particle.position);
+        halo.setOrigin(sf::Vector2f(particle.size * 2.0f, particle.size * 2.0f));
+        halo.setFillColor(sf::Color(particle.color.r, particle.color.g, particle.color.b, alpha / 3));
+        window.draw(halo);
+
+        // Particule principale
+        sf::CircleShape shape(particle.size);
+        shape.setPosition(particle.position);
+        shape.setOrigin(sf::Vector2f(particle.size, particle.size));
+        shape.setFillColor(sf::Color(particle.color.r, particle.color.g, particle.color.b, alpha));
+        window.draw(shape);
+    }
 }

@@ -25,6 +25,11 @@ public:
     bool isActive() const { return m_isActive; }
     void setActive(bool active) { m_isActive = active; }
 
+    // Mort spectaculaire
+    void triggerDeath();  // Déclenche l'animation de mort
+    bool isDying() const { return m_isDying; }
+    bool isFullyDead() const { return m_isDying && m_deathTimer <= 0.0f; }
+
 private:
     struct InfectedParticle {
         float angle;         // Angle actuel autour de l'ennemi (en radians)
@@ -56,4 +61,25 @@ private:
 
     // Collision timer
     float m_damageTimer;
+
+    // Animation de mort
+    bool m_isDying;
+    float m_deathTimer;
+    static constexpr float DEATH_DURATION = 0.6f;  // Durée de l'animation de mort
+
+    // Particules d'explosion de mort
+    struct DeathParticle {
+        sf::Vector2f position;
+        sf::Vector2f velocity;
+        float life;       // 1.0 = neuve, 0.0 = morte
+        float size;
+        sf::Color color;
+        float rotation;
+        float rotationSpeed;
+    };
+    std::vector<DeathParticle> m_deathParticles;
+
+    // Onde de choc
+    float m_shockwaveRadius;
+    float m_shockwaveAlpha;
 };

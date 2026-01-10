@@ -11,6 +11,8 @@ Player::Player(CharacterType characterType)
     , m_previousState(State::Idle)
     , m_isMovingLeft(false)
     , m_isMovingRight(false)
+    , m_isMovingUp(false)
+    , m_isMovingDown(false)
     , m_isRunning(false)
     , m_isGrounded(false)
     , m_facingRight(true)
@@ -31,6 +33,8 @@ Player::Player(CharacterType characterType)
     , m_chargeTimer(0.0f)
     , m_chargeCooldown(0.0f)
     , m_prepareTimer(0.0f)
+    , m_chargeAlpha(1.0f)
+    , m_chargeDirection(1.0f, 0.0f)
     , m_chargeStartPosition(0.0f, 0.0f)
     , m_firefly1Position(0.0f, 0.0f)
     , m_firefly2Position(0.0f, 0.0f)
@@ -172,6 +176,16 @@ void Player::handleInput(sf::Keyboard::Key key, bool isPressed) {
             m_isMovingRight = isPressed;
             break;
 
+        case sf::Keyboard::Key::Up:
+        case sf::Keyboard::Key::Z:
+            m_isMovingUp = isPressed;
+            break;
+
+        case sf::Keyboard::Key::Down:
+        case sf::Keyboard::Key::S:
+            m_isMovingDown = isPressed;
+            break;
+
         case sf::Keyboard::Key::LShift:
             m_isRunning = isPressed;
             break;
@@ -205,7 +219,26 @@ void Player::handleInput(sf::Keyboard::Key key, bool isPressed) {
                 m_chargeStartPosition = m_position;
                 m_chargeTrailPositions.clear();
                 m_explosionParticles.clear();
-                std::cout << "Hero Charge preparing..." << std::endl;
+
+                // Calculer la direction de la charge basée sur les touches actuellement appuyées
+                m_chargeDirection = sf::Vector2f(0.0f, 0.0f);
+                if (m_isMovingRight) m_chargeDirection.x += 1.0f;
+                if (m_isMovingLeft) m_chargeDirection.x -= 1.0f;
+                if (m_isMovingUp) m_chargeDirection.y -= 1.0f;
+                if (m_isMovingDown) m_chargeDirection.y += 1.0f;
+
+                // Si aucune direction, utiliser la direction du regard (horizontal seulement)
+                if (m_chargeDirection.x == 0.0f && m_chargeDirection.y == 0.0f) {
+                    m_chargeDirection.x = m_facingRight ? 1.0f : -1.0f;
+                }
+
+                // Normaliser la direction pour que la vitesse soit constante (même en diagonale)
+                float length = std::sqrt(m_chargeDirection.x * m_chargeDirection.x + m_chargeDirection.y * m_chargeDirection.y);
+                if (length > 0.0f) {
+                    m_chargeDirection /= length;
+                }
+
+                std::cout << "Hero Charge preparing... Direction: (" << m_chargeDirection.x << ", " << m_chargeDirection.y << ")" << std::endl;
             }
             break;
 
@@ -237,6 +270,10 @@ void Player::update(sf::Time deltaTime) {
     // Phase de préparation de la charge
     if (m_isPreparingCharge) {
         m_prepareTimer -= dt;
+
+        // Fade out du personnage pendant la préparation (disparition progressive)
+        m_chargeAlpha -= dt * 2.0f;  // Disparition en 0.5s
+        if (m_chargeAlpha < 0.0f) m_chargeAlpha = 0.0f;
 
         // Bloquer le mouvement pendant la préparation
         m_velocity.x = 0.0f;
@@ -290,10 +327,9 @@ void Player::update(sf::Time deltaTime) {
     if (m_isCharging) {
         m_chargeTimer -= dt;
 
-        // Déplacer le joueur dans la direction de la charge
-        float chargeDirection = m_facingRight ? 1.0f : -1.0f;
-        m_velocity.x = chargeDirection * CHARGE_SPEED;
-        m_velocity.y = 0.0f;  // Pas de gravité pendant la charge
+        // Déplacer le joueur dans la direction de la charge (supporte les diagonales)
+        m_velocity.x = m_chargeDirection.x * CHARGE_SPEED;
+        m_velocity.y = m_chargeDirection.y * CHARGE_SPEED;
 
         // Ajouter la position actuelle à la traînée (plus fréquemment)
         m_chargeTrailPositions.push_back(playerCenter);
@@ -306,6 +342,7 @@ void Player::update(sf::Time deltaTime) {
             m_isCharging = false;
             m_chargeCooldown = CHARGE_COOLDOWN;
             m_velocity.x = 0.0f;
+            m_velocity.y = 0.0f;
             std::cout << "Hero Charge ended!" << std::endl;
         }
     }
@@ -318,6 +355,12 @@ void Player::update(sf::Time deltaTime) {
         } else {
             m_chargeTrailPositions.clear();
         }
+    }
+
+    // Fade in du personnage après la charge (réapparition rapide)
+    if (!m_isCharging && !m_isPreparingCharge && m_chargeAlpha < 1.0f) {
+        m_chargeAlpha += dt * 5.0f;  // Réapparition en 0.2s (plus rapide)
+        if (m_chargeAlpha > 1.0f) m_chargeAlpha = 1.0f;
     }
 
     updatePhysics(deltaTime);
@@ -494,6 +537,10 @@ void Player::render(sf::RenderWindow& window) {
     } else {
         m_sprite->setOrigin(sf::Vector2f(0.0f, 0.0f));
     }
+
+    // Appliquer l'alpha pour le fade pendant la charge
+    unsigned char alpha = static_cast<unsigned char>(m_chargeAlpha * 255.0f);
+    m_sprite->setColor(sf::Color(255, 255, 255, alpha));
 
     // Dessiner le sprite
     window.draw(*m_sprite);
@@ -748,16 +795,30 @@ void Player::render(sf::RenderWindow& window) {
                     window.draw(energyParticle);
                 }
 
-                // Lignes de vitesse (effet de motion blur) plus prononcées
-                float lineDirection = m_facingRight ? -1.0f : 1.0f;
+                // Lignes de vitesse (effet de motion blur) - s'adaptent à la direction de la charge
+                // Direction opposée à la charge pour l'effet de traînée
+                sf::Vector2f lineDir(-m_chargeDirection.x, -m_chargeDirection.y);
+
                 for (int i = 0; i < 7; ++i) {
-                    float lineX = playerCenter.x + lineDirection * (20.0f + i * 25.0f);
+                    float distance = 20.0f + i * 25.0f;
+                    float lineX = playerCenter.x + lineDir.x * distance;
+                    float lineY = playerCenter.y + lineDir.y * distance;
+
+                    // Décalage perpendiculaire pour disperser les lignes
+                    float perpOffset = (i - 3) * 10.0f;
+                    lineX += -lineDir.y * perpOffset;  // Perpendiculaire
+                    lineY += lineDir.x * perpOffset;
+
                     float lineLength = 50.0f - i * 5.0f;
                     float lineAlpha = 180.0f - i * 22.0f;
-                    float lineY = playerCenter.y - 30.0f + i * 10.0f;
 
                     sf::RectangleShape speedLine(sf::Vector2f(lineLength, 3.0f));
                     speedLine.setPosition(sf::Vector2f(lineX, lineY));
+
+                    // Rotation de la ligne pour qu'elle suive la direction de la charge
+                    float angle = std::atan2(m_chargeDirection.y, m_chargeDirection.x) * 180.0f / 3.14159f;
+                    speedLine.setRotation(sf::degrees(angle));
+
                     speedLine.setFillColor(sf::Color(255, 220, 100, static_cast<unsigned char>(lineAlpha)));
                     window.draw(speedLine);
                 }

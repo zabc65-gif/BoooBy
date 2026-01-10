@@ -9,6 +9,30 @@
 
 class Level {
 public:
+    // Particule ambiante flottante (poussière, spore, pollen)
+    struct AmbientParticle {
+        sf::Vector2f position;
+        sf::Vector2f basePosition;  // Position de base pour l'oscillation
+        float size;
+        float alpha;
+        float oscillationPhase;     // Phase pour le mouvement sinusoïdal
+        float oscillationSpeed;     // Vitesse d'oscillation
+        float oscillationAmplitude; // Amplitude du mouvement
+        float driftSpeed;           // Vitesse de dérive lente
+        sf::Color color;
+    };
+
+    // Rayon de lumière subtil
+    struct LightRay {
+        sf::Vector2f position;
+        float width;
+        float height;
+        float alpha;
+        float flickerPhase;
+        float flickerSpeed;
+        float angle;  // Angle du rayon (en degrés)
+    };
+
     Level();
 
     bool load();
@@ -42,6 +66,12 @@ public:
     const std::vector<std::unique_ptr<Enemy>>& getEnemies() const { return m_enemies; }
     void generateEnemies(int levelNumber);
 
+    // Décor ambiant
+    void generateAmbientParticles();
+    void updateAmbientEffects(sf::Time deltaTime);
+    void renderAmbientBackground(sf::RenderWindow& window);  // Derrière les tiles
+    void renderAmbientForeground(sf::RenderWindow& window);  // Devant les tiles
+
 private:
     void createSimpleLevel();
 
@@ -68,4 +98,9 @@ private:
 
     // Ennemis
     std::vector<std::unique_ptr<Enemy>> m_enemies;
+
+    // Décor ambiant
+    std::vector<AmbientParticle> m_ambientParticles;
+    std::vector<LightRay> m_lightRays;
+    float m_ambientTimer;
 };

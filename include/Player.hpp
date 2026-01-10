@@ -85,6 +85,8 @@ private:
 
     bool m_isMovingLeft;
     bool m_isMovingRight;
+    bool m_isMovingUp;
+    bool m_isMovingDown;
     bool m_isRunning;
     bool m_isGrounded;
     bool m_facingRight;
@@ -140,6 +142,8 @@ private:
     float m_chargeTimer;
     float m_chargeCooldown;
     float m_prepareTimer;      // Timer pour la phase de préparation
+    float m_chargeAlpha;       // Opacité du personnage pendant la charge (0.0 = invisible, 1.0 = opaque)
+    sf::Vector2f m_chargeDirection;  // Direction normalisée de la charge (supporte les diagonales)
     sf::Vector2f m_chargeStartPosition;
     std::vector<sf::Vector2f> m_chargeTrailPositions;  // Traînée de la charge
 

@@ -2,6 +2,8 @@
 #include "Player.hpp"
 #include <cmath>
 #include <random>
+#include <iostream>
+#include <algorithm>
 
 Enemy::Enemy(const sf::Vector2f& position, float scale)
     : m_position(position)
@@ -9,6 +11,10 @@ Enemy::Enemy(const sf::Vector2f& position, float scale)
     , m_scale(scale)
     , m_pulseTimer(0.0f)
     , m_damageTimer(0.0f)
+    , m_isDying(false)
+    , m_deathTimer(0.0f)
+    , m_shockwaveRadius(0.0f)
+    , m_shockwaveAlpha(255.0f)
 {
     // Nombre de particules proportionnel à la taille
     int particleCount = static_cast<int>(PARTICLE_COUNT * scale);
@@ -45,6 +51,38 @@ void Enemy::update(sf::Time deltaTime, const Player& player) {
     if (!m_isActive) return;
 
     float dt = deltaTime.asSeconds();
+
+    // Si en train de mourir, gérer l'animation de mort
+    if (m_isDying) {
+        m_deathTimer -= dt;
+
+        // Mise à jour de l'onde de choc
+        m_shockwaveRadius += 400.0f * m_scale * dt;  // Expansion rapide
+        m_shockwaveAlpha -= 400.0f * dt;  // Disparition progressive
+        if (m_shockwaveAlpha < 0.0f) m_shockwaveAlpha = 0.0f;
+
+        // Mise à jour des particules de mort
+        for (auto& p : m_deathParticles) {
+            p.position += p.velocity * dt;
+            p.velocity *= 0.96f;  // Friction
+            p.velocity.y += 200.0f * dt;  // Légère gravité
+            p.life -= dt * 1.8f;
+            p.size *= 0.98f;
+            p.rotation += p.rotationSpeed * dt;
+        }
+
+        // Supprimer les particules mortes
+        m_deathParticles.erase(
+            std::remove_if(m_deathParticles.begin(), m_deathParticles.end(),
+                [](const DeathParticle& p) { return p.life <= 0.0f; }),
+            m_deathParticles.end());
+
+        // Quand l'animation est finie, désactiver l'ennemi
+        if (m_deathTimer <= 0.0f && m_deathParticles.empty()) {
+            m_isActive = false;
+        }
+        return;
+    }
 
     // Mettre à jour le timer d'animation de pulsation
     m_pulseTimer += dt;
@@ -87,8 +125,140 @@ void Enemy::update(sf::Time deltaTime, const Player& player) {
     }
 }
 
+void Enemy::triggerDeath() {
+    if (m_isDying) return;  // Déjà en train de mourir
+
+    m_isDying = true;
+    m_deathTimer = DEATH_DURATION;
+    m_shockwaveRadius = ENEMY_RADIUS * m_scale;
+    m_shockwaveAlpha = 255.0f;
+
+    // Créer l'explosion de particules
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * 3.14159f);
+    std::uniform_real_distribution<float> speedDist(150.0f, 400.0f);
+    std::uniform_real_distribution<float> sizeDist(4.0f * m_scale, 12.0f * m_scale);
+    std::uniform_real_distribution<float> rotSpeedDist(-10.0f, 10.0f);
+    std::uniform_int_distribution<int> colorChoice(0, 3);
+
+    // Nombre de particules proportionnel à la taille
+    int particleCount = static_cast<int>(30 * m_scale);
+
+    for (int i = 0; i < particleCount; ++i) {
+        DeathParticle p;
+        float angle = angleDist(gen);
+        float speed = speedDist(gen);
+
+        p.position = m_position;
+        p.velocity = sf::Vector2f(std::cos(angle) * speed, std::sin(angle) * speed);
+        p.life = 1.0f;
+        p.size = sizeDist(gen);
+        p.rotation = angleDist(gen);
+        p.rotationSpeed = rotSpeedDist(gen);
+
+        // Palette de couleurs : rouge, orange, jaune, blanc (feu)
+        int color = colorChoice(gen);
+        if (color == 0) p.color = sf::Color(200, 50, 30, 255);       // Rouge
+        else if (color == 1) p.color = sf::Color(255, 120, 30, 255); // Orange
+        else if (color == 2) p.color = sf::Color(255, 220, 80, 255); // Jaune
+        else p.color = sf::Color(255, 255, 220, 255);                // Blanc chaud
+
+        m_deathParticles.push_back(p);
+    }
+
+    // Convertir les particules infectées en particules de mort (elles explosent aussi)
+    for (const auto& infected : m_particles) {
+        DeathParticle p;
+        float particleX = m_position.x + std::cos(infected.angle) * infected.orbitRadius;
+        float particleY = m_position.y + std::sin(infected.angle) * infected.orbitRadius;
+
+        p.position = sf::Vector2f(particleX, particleY);
+
+        // Éjecter dans la direction radiale
+        float ejectionAngle = infected.angle + angleDist(gen) * 0.3f;
+        float speed = speedDist(gen) * 0.8f;
+        p.velocity = sf::Vector2f(std::cos(ejectionAngle) * speed, std::sin(ejectionAngle) * speed);
+
+        p.life = 1.0f;
+        p.size = infected.size * 2.0f;
+        p.color = infected.color;
+        p.rotation = 0.0f;
+        p.rotationSpeed = rotSpeedDist(gen);
+
+        m_deathParticles.push_back(p);
+    }
+
+    // Vider les particules infectées normales
+    m_particles.clear();
+
+    std::cout << "Enemy death triggered with " << m_deathParticles.size() << " particles!" << std::endl;
+}
+
 void Enemy::render(sf::RenderWindow& window) {
     if (!m_isActive) return;
+
+    // Si en train de mourir, dessiner l'animation de mort
+    if (m_isDying) {
+        // Dessiner l'onde de choc (cercle qui s'étend)
+        if (m_shockwaveAlpha > 0.0f) {
+            // Onde de choc externe (orange)
+            sf::CircleShape shockwave(m_shockwaveRadius);
+            shockwave.setPosition(m_position);
+            shockwave.setOrigin(sf::Vector2f(m_shockwaveRadius, m_shockwaveRadius));
+            shockwave.setFillColor(sf::Color::Transparent);
+            shockwave.setOutlineThickness(4.0f * m_scale);
+            shockwave.setOutlineColor(sf::Color(255, 150, 50, static_cast<unsigned char>(m_shockwaveAlpha)));
+            window.draw(shockwave);
+
+            // Onde de choc interne (jaune)
+            sf::CircleShape innerShockwave(m_shockwaveRadius * 0.7f);
+            innerShockwave.setPosition(m_position);
+            innerShockwave.setOrigin(sf::Vector2f(m_shockwaveRadius * 0.7f, m_shockwaveRadius * 0.7f));
+            innerShockwave.setFillColor(sf::Color::Transparent);
+            innerShockwave.setOutlineThickness(2.0f * m_scale);
+            innerShockwave.setOutlineColor(sf::Color(255, 255, 100, static_cast<unsigned char>(m_shockwaveAlpha * 0.7f)));
+            window.draw(innerShockwave);
+        }
+
+        // Dessiner les particules d'explosion
+        for (const auto& p : m_deathParticles) {
+            // Halo externe
+            sf::CircleShape glow(p.size * 1.8f);
+            glow.setPosition(p.position);
+            glow.setOrigin(sf::Vector2f(p.size * 1.8f, p.size * 1.8f));
+            glow.setFillColor(sf::Color(p.color.r, p.color.g, p.color.b, static_cast<unsigned char>(p.life * 60)));
+            window.draw(glow);
+
+            // Particule principale
+            sf::CircleShape particle(p.size);
+            particle.setPosition(p.position);
+            particle.setOrigin(sf::Vector2f(p.size, p.size));
+            particle.setFillColor(sf::Color(p.color.r, p.color.g, p.color.b, static_cast<unsigned char>(p.life * 255)));
+            window.draw(particle);
+
+            // Coeur brillant
+            sf::CircleShape core(p.size * 0.4f);
+            core.setPosition(p.position);
+            core.setOrigin(sf::Vector2f(p.size * 0.4f, p.size * 0.4f));
+            core.setFillColor(sf::Color(255, 255, 255, static_cast<unsigned char>(p.life * 200)));
+            window.draw(core);
+        }
+
+        // Flash central au début de l'explosion
+        if (m_deathTimer > DEATH_DURATION - 0.15f) {
+            float flashProgress = (m_deathTimer - (DEATH_DURATION - 0.15f)) / 0.15f;
+            float flashSize = (ENEMY_RADIUS * m_scale * 3.0f) * (1.0f - flashProgress);
+
+            sf::CircleShape flash(flashSize);
+            flash.setPosition(m_position);
+            flash.setOrigin(sf::Vector2f(flashSize, flashSize));
+            flash.setFillColor(sf::Color(255, 255, 200, static_cast<unsigned char>(flashProgress * 200)));
+            window.draw(flash);
+        }
+
+        return;
+    }
 
     // Rayon du corps avec l'échelle
     float scaledRadius = ENEMY_RADIUS * m_scale;
